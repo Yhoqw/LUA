@@ -1,0 +1,1865 @@
+-- GTA STYLE GAME BY YAZDAN ALI KHAN
+
+-- VARIABLES
+CFG = {
+  title = "GTA 7",
+  sub = "NEON CITY",
+  by = "YAZDAN and DARA",
+  sw = 240, sh = 136, ts = 8,
+  ww = 960, wh = 640, cw = 160, ch = 128,
+  walk = 1.15, sprint = 1.9,
+  accel = 0.10, vmax = 3.2, vrev = 1.15, drag = 0.972, turn = 0.062,
+  heat_max = 5, heat_cool = 480, health = 100, money_win = 3000,
+  sound = true,
+}
+
+INPUT = {
+  up = 0, down = 1, left = 2, right = 3,
+  fire = 4, use = 5, sprint = 6,
+}
+
+TILE = {
+  asphalt = 1, road_h = 2, road_v = 3, walk = 4,
+  lot = 5, grass = 6, grass2 = 7, path = 8,
+}
+
+SPR = {
+  player = 256, ped1 = 288, ped2 = 320, cop = 352,
+  car1 = 384, car2 = 416, car3 = 448, police = 480,
+}
+
+SFX = { gun = 0, boom = 1, cash = 2, job = 3, hurt = 4, hit = 5 }
+
+-- ASSETS
+
+ART = {
+  char = {
+    "................",
+    "................",
+    "................",
+    ".....oooooo.....",
+    ".....ohhhho.....",
+    ".....ohhhho.....",
+    ".....oooooo.....",
+    "....oooooooo....",
+    "....obbbbbbsggg.",
+    "....obbbbbbsggg.",
+    "....obbbbbbo....",
+    "....oooooooo....",
+    ".....pp..pp.....",
+    ".....pp..pp.....",
+    ".....oo..oo.....",
+    "................",
+  },
+  car = {
+    "................",
+    "................",
+    "................",
+    "....tt....tt....",
+    "..oooooooooooo..",
+    "..oruubbccbbbl..",
+    "..obuubbccbbbo..",
+    "..obuubbccbbbo..",
+    "..obuubbccbbbo..",
+    "..obuubbccbbbo..",
+    "..oruubbccbbbl..",
+    "..oooooooooooo..",
+    "....tt....tt....",
+    "................",
+    "................",
+    "................",
+  },
+  tiles = {
+    [1] = { "ffffffff", "ffff0fff", "ffffffff", "0fffffff", "ffffffff", "fffff0ff", "ffffffff", "f0ffffff" },
+    [2] = { "ffffffff", "ffffffff", "ffffffff", "4444ffff", "4444ffff", "ffffffff", "ffffffff", "ffffffff" },
+    [3] = { "fff4ffff", "fff4ffff", "fff4ffff", "fff4ffff", "ffffffff", "ffffffff", "ffffffff", "ffffffff" },
+    [4] = { "dddddddd", "dddddddd", "dddddddd", "eeeeeeee", "dddddddd", "dddddddd", "dddddddd", "eeeeeeee" },
+    [5] = { "eeeeeeee", "eeeeefee", "eeeeeeee", "feeeeeee", "eeeeeeee", "eeeeeeee", "eeeeeeef", "eeeeeeee" },
+    [6] = { "66666666", "66566666", "66666666", "66666676", "66666666", "65666666", "66666666", "66676666" },
+    [7] = { "66666666", "66666666", "66656666", "66666666", "66666666", "66666676", "66666666", "66566666" },
+    [8] = { "dddddddd", "dedddddd", "dddddedd", "dddddddd", "dddedddd", "dddddddd", "ddddeddd", "dddddddd" },
+  },
+}
+
+VAR = {
+  player = { o = 15, h = 1, s = 4, b = 12, p = 8, g = 13 },
+  ped1 = { o = 15, h = 1, s = 3, b = 2, p = 8, g = 13 },
+  ped2 = { o = 15, h = 3, s = 4, b = 9, p = 15, g = 13 },
+  cop = { o = 15, h = 8, s = 4, b = 9, p = 8, g = 13 },
+}
+
+CARCOL = {
+  { o = 15, b = 2, c = 8, l = 4, t = 1, p = 2, r = 1, u = 2 },
+  { o = 15, b = 7, c = 8, l = 4, t = 1, p = 8, r = 1, u = 7 },
+  { o = 15, b = 4, c = 8, l = 4, t = 1, p = 14, r = 1, u = 4 },
+  { o = 15, b = 12, c = 8, l = 4, t = 1, p = 9, r = 1, u = 10 },
+}
+
+BPAL = {
+  { base = 15, roof = 8, edge = 13 },
+  { base = 2, roof = 1, edge = 15 },
+  { base = 3, roof = 2, edge = 15 },
+  { base = 7, roof = 6, edge = 15 },
+  { base = 8, roof = 15, edge = 13 },
+  { base = 14, roof = 15, edge = 13 },
+  { base = 1, roof = 2, edge = 13 },
+}
+
+GAME = {}
+WORLD = {}
+TITLE = {}
+
+function clamp(v, lo, hi)
+  if v < lo then return lo end
+  if v > hi then return hi end
+  return v
+end
+
+function sign(v)
+  if v < 0 then return -1 end
+  if v > 0 then return 1 end
+  return 0
+end
+
+function atan2(y, x)
+  if x > 0 then return math.atan(y / x) end
+  if x < 0 then
+    if y >= 0 then return math.atan(y / x) + math.pi end
+    return math.atan(y / x) - math.pi
+  end
+  if y > 0 then return math.pi / 2 end
+  if y < 0 then return -math.pi / 2 end
+  return 0
+end
+
+function dist(ax, ay, bx, by)
+  local dx, dy = ax - bx, ay - by
+  return math.sqrt(dx * dx + dy * dy)
+end
+
+function dist2(ax, ay, bx, by)
+  local dx, dy = ax - bx, ay - by
+  return dx * dx + dy * dy
+end
+
+function dir8(a)
+  return math.floor((a % (math.pi * 2)) / (math.pi / 4) + 0.5) % 8
+end
+
+function tw(s, sc)
+  return #s * 6 * (sc or 1)
+end
+
+function center(s, y, c, sc)
+  print(s, math.floor((CFG.sw - tw(s, sc)) / 2), y, c, false, sc)
+end
+
+function vclear(id)
+  local a = 0x4000 + id * 32
+  for i = 0, 31 do poke(a + i, 0) end
+end
+
+function vpx(id, x, y, c)
+  local a = 0x4000 + id * 32 + y * 4 + math.floor(x / 2)
+  local b = peek(a)
+  if x % 2 == 0 then
+    poke(a, b - b % 16 + c * 16)
+  else
+    poke(a, b - b % 16 + c)
+  end
+end
+
+function vclear16(base)
+  vclear(base)
+  vclear(base + 1)
+  vclear(base + 16)
+  vclear(base + 17)
+end
+
+function vwrite16(base, g)
+  vclear16(base)
+  for y = 0, 15 do
+    for x = 0, 15 do
+      local c = g[y + 1][x + 1]
+      if c and c > 0 then
+        vpx(base + math.floor(x / 8) + math.floor(y / 8) * 16, x % 8, y % 8, c)
+      end
+    end
+  end
+end
+
+function paint16(rows, cmap)
+  local g = {}
+  for y = 1, 16 do
+    g[y] = {}
+    local row = rows[y]
+    for x = 1, 16 do
+      g[y][x] = cmap[row:sub(x, x)] or 0
+    end
+  end
+  return g
+end
+
+function rot16(g, ang)
+  local out = {}
+  local cx, cy = 8.5, 8.5
+  local co, si = math.cos(ang), math.sin(ang)
+  for y = 1, 16 do
+    out[y] = {}
+    for x = 1, 16 do
+      local dx, dy = x - cx, y - cy
+      local sx = math.floor(cx + dx * co + dy * si + 0.5)
+      local sy = math.floor(cy - dx * si + dy * co + 0.5)
+      out[y][x] = (g[sy] and g[sy][sx]) or 0
+    end
+  end
+  return out
+end
+
+function bake_rot(base, rows, cmap)
+  local g = paint16(rows, cmap)
+  for k = 0, 7 do
+    vwrite16(base + k * 2, rot16(g, k * math.pi / 4))
+  end
+end
+
+function bake_tile(id, rows)
+  vclear(id)
+  for y = 1, 8 do
+    local row = rows[y]
+    for x = 1, 8 do
+      local c = tonumber(row:sub(x, x), 16)
+      if c and c > 0 then vpx(id, x - 1, y - 1, c) end
+    end
+  end
+end
+
+function bake_wave(id, vals)
+  for k = 0, 31 do
+    local v = vals[k + 1] or 0
+    local a = 0xFFE4 + id * 16 + math.floor(k / 2)
+    local b = peek(a)
+    if k % 2 == 0 then
+      poke(a, b - b % 16 + v * 16)
+    else
+      poke(a, b - b % 16 + v)
+    end
+  end
+end
+
+function bake_sfx(id, note, oct, wave, dur)
+  local base = 0x100E4 + id * 66
+  for i = 0, 65 do poke(base + i, 0) end
+  for i = 0, 29 do
+    local vol = 15
+    if i < dur then vol = math.floor((i / dur) * 14) end
+    local w = 0
+    if i < dur then w = wave end
+    poke(base + i * 2, vol + w * 16)
+    poke(base + i * 2 + 1, 0)
+  end
+  poke(base + 60, oct)
+  poke(base + 61, note)
+end
+
+function bake_audio()
+  if not CFG.sound then return end
+  bake_wave(0, {})
+  local sq = {}
+  for i = 1, 32 do
+    if i <= 16 then sq[i] = 15 else sq[i] = 0 end
+  end
+  bake_wave(1, sq)
+  local tri = { 0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14, 14,
+                14, 14, 12, 12, 10, 10, 8, 8, 6, 6, 4, 4, 2, 2, 0, 0 }
+  bake_wave(2, tri)
+  local saw = {}
+  for i = 1, 32 do saw[i] = math.floor(i / 2) % 16 end
+  bake_wave(3, saw)
+  bake_sfx(SFX.gun, 10, 2, 1, 8)
+  bake_sfx(SFX.boom, 4, 1, 3, 20)
+  bake_sfx(SFX.cash, 9, 5, 1, 12)
+  bake_sfx(SFX.job, 4, 4, 1, 20)
+  bake_sfx(SFX.hurt, 0, 2, 2, 10)
+  bake_sfx(SFX.hit, 5, 3, 1, 6)
+end
+
+function snd(id)
+  if CFG.sound then sfx(id) end
+end
+
+function bake_art()
+  for id, rows in pairs(ART.tiles) do bake_tile(id, rows) end
+  bake_rot(SPR.player, ART.char, VAR.player)
+  bake_rot(SPR.ped1, ART.char, VAR.ped1)
+  bake_rot(SPR.ped2, ART.char, VAR.ped2)
+  bake_rot(SPR.cop, ART.char, VAR.cop)
+  bake_rot(SPR.car1, ART.car, CARCOL[1])
+  bake_rot(SPR.car2, ART.car, CARCOL[2])
+  bake_rot(SPR.car3, ART.car, CARCOL[3])
+  bake_rot(SPR.police, ART.car, CARCOL[4])
+end
+
+function car_base(v)
+  if v == 1 then return SPR.car1 end
+  if v == 2 then return SPR.car2 end
+  if v == 3 then return SPR.car3 end
+  return SPR.police
+end
+
+function node_x(i) return 12 + CFG.cw * i end
+function node_y(j) return 12 + CFG.ch * j end
+
+function is_park(ci, cj)
+  return (ci == 1 and cj == 1) or (ci == 4 and cj == 3) or (ci == 2 and cj == 4) or (ci == 5 and cj == 2)
+end
+
+function add_building(x, y, w, h, pal)
+  table.insert(WORLD.buildings, {
+    x = x, y = y, w = w, h = h,
+    base = pal.base, roof = pal.roof, edge = pal.edge,
+    seed = math.random(1, 999), ac = math.random(1, 3),
+  })
+end
+
+function build_block(ci, cj)
+  local cx, cy = ci * CFG.cw, cj * CFG.ch
+  if is_park(ci, cj) then
+    for i = 1, 12 do
+      local x = cx + 40 + math.random(0, 108)
+      local y = cy + 40 + math.random(0, 70)
+      if dist(x, y, 208, 196) > 46 then
+        table.insert(WORLD.trees, { x = x, y = y, s = math.random(4, 6) })
+      end
+    end
+    return
+  end
+  if (ci * 7 + cj * 11) % 6 == 0 then return end
+  local pal = BPAL[(ci * 5 + cj * 3) % #BPAL + 1]
+  local x0, y0 = cx + 32, cy + 32
+  if (ci + cj) % 3 == 0 then
+    add_building(x0, y0, 48, 80, pal)
+    add_building(x0 + 64, y0, 48, 80, pal)
+  elseif (ci + cj) % 3 == 1 then
+    add_building(x0, y0, 112, 34, pal)
+    add_building(x0, y0 + 46, 112, 34, pal)
+  else
+    add_building(x0 + 4, y0 + 4, 104, 72, pal)
+  end
+end
+
+function build_city()
+  WORLD.buildings = {}
+  WORLD.trees = {}
+  WORLD.lamps = {}
+  for ty = 0, 79 do
+    for tx = 0, 119 do
+      local ci, cj = math.floor(tx / 20), math.floor(ty / 16)
+      local cx, cy = tx % 20, ty % 16
+      local t
+      if cx < 3 or cy < 3 then
+        if cx < 3 and cy < 3 then
+          t = TILE.asphalt
+        elseif cy < 3 then
+          if cy == 1 then t = TILE.road_h else t = TILE.asphalt end
+        else
+          if cx == 1 then t = TILE.road_v else t = TILE.asphalt end
+        end
+      else
+        local bx, by = cx - 3, cy - 3
+        if bx == 0 or by == 0 or bx == 16 or by == 12 then
+          t = TILE.walk
+        elseif is_park(ci, cj) then
+          if by == 6 or bx == 8 then
+            t = TILE.path
+          elseif (tx + ty) % 7 == 0 then
+            t = TILE.grass2
+          else
+            t = TILE.grass
+          end
+        else
+          t = TILE.lot
+        end
+      end
+      mset(tx, ty, t)
+    end
+  end
+  for ci = 0, 5 do
+    for cj = 0, 4 do
+      build_block(ci, cj)
+      table.insert(WORLD.lamps, { x = node_x(ci) + 16, y = node_y(cj) + 16 })
+    end
+  end
+end
+
+function solid_at(x, y, r)
+  if x - r < 0 or y - r < 0 or x + r > CFG.ww or y + r > CFG.wh then return true end
+  for _, b in ipairs(WORLD.buildings) do
+    if x + r > b.x and x - r < b.x + b.w and y + r > b.y and y - r < b.y + b.h then
+      return true
+    end
+  end
+  return false
+end
+
+function move_actor(a, dx, dy, r)
+  if dx ~= 0 and not solid_at(a.x + dx, a.y, r) then a.x = a.x + dx end
+  if dy ~= 0 and not solid_at(a.x, a.y + dy, r) then a.y = a.y + dy end
+end
+
+function new_car(x, y, angle, v)
+  local c = {
+    x = x, y = y, angle = angle or 0, speed = 0,
+    v = v or 1, base = car_base(v or 1),
+    health = 4, maxhp = 4, dead = false,
+    parked = false, traffic = false, police = false, marked = false,
+    dir = 0, lat = 6, prog = 0, ni = 0, nj = 0, ti = 0, tj = 0,
+    seed = math.random(1, 999),
+  }
+  table.insert(WORLD.cars, c)
+  return c
+end
+
+function new_ped(x, y, base)
+  local p = {
+    x = x, y = y, angle = 0, dir = math.random(0, 3),
+    timer = math.random(40, 160), panic = 0, hp = 1,
+    base = base or SPR.ped1, dead = false, target = false,
+    step = math.random(0, 99),
+  }
+  table.insert(WORLD.peds, p)
+  return p
+end
+
+function new_cop(x, y)
+  local c = {
+    x = x, y = y, angle = 0, hp = 3, cd = math.random(30, 80),
+    dead = false, panic = 0, base = SPR.cop,
+  }
+  table.insert(WORLD.cops, c)
+  return c
+end
+
+function new_bullet(owner, x, y, angle, speed, dmg, color)
+  table.insert(WORLD.bullets, {
+    owner = owner, x = x, y = y, angle = angle,
+    speed = speed, dmg = dmg, color = color, life = 50,
+  })
+end
+
+function new_pickup(x, y, kind, value)
+  table.insert(WORLD.pickups, {
+    x = x, y = y, kind = kind, value = value,
+    timer = 0, bob = math.random(0, 99),
+  })
+end
+
+function spawn_particle(x, y, vx, vy, life, c, size)
+  table.insert(WORLD.fx, {
+    x = x, y = y, vx = vx, vy = vy,
+    life = life, max = life, c = c, s = size or 1,
+  })
+end
+
+function burst(x, y, n, c, power)
+  for i = 1, n do
+    local a = math.random() * math.pi * 2
+    local s = math.random() * (power or 1.6)
+    spawn_particle(x, y, math.cos(a) * s, math.sin(a) * s, math.random(10, 24), c, 1)
+  end
+end
+
+function explosion(x, y)
+  burst(x, y, 18, 3, 2.2)
+  burst(x, y, 10, 4, 1.4)
+  burst(x, y, 8, 14, 0.8)
+  GAME.shake = 7
+  snd(SFX.boom)
+end
+
+function show_msg(text)
+  GAME.msg = text
+  GAME.msg_t = 150
+end
+
+function add_money(v)
+  GAME.money = clamp(GAME.money + v, 0, 99999)
+end
+
+function crime(n)
+  GAME.heat = clamp(GAME.heat + n, 0, CFG.heat_max)
+  GAME.heat_t = 0
+end
+
+function alert(n)
+  if GAME.heat < n then GAME.heat = n end
+  GAME.heat_t = 0
+end
+
+function spawn_parked()
+  local spots = {
+    { x = 250, y = 132, a = 0 }, { x = 540, y = 132, a = 0 },
+    { x = 420, y = 260, a = math.pi }, { x = 700, y = 260, a = math.pi },
+    { x = 260, y = 404, a = 0 }, { x = 620, y = 388, a = 0 },
+    { x = 380, y = 532, a = math.pi }, { x = 830, y = 532, a = math.pi },
+    { x = 168, y = 200, a = math.pi / 2 }, { x = 168, y = 460, a = math.pi / 2 },
+    { x = 648, y = 300, a = math.pi / 2 }, { x = 808, y = 620, a = math.pi / 2 },
+  }
+  WORLD.park_spots = spots
+  for i, s in ipairs(spots) do
+    local c = new_car(s.x, s.y, s.a, (i - 1) % 3 + 1)
+    c.parked = true
+  end
+end
+
+function respawn_parked()
+  local spots = WORLD.park_spots
+  if not spots then return end
+  for i = 1, 8 do
+    local s = spots[math.random(1, #spots)]
+    local free = true
+    for _, c in ipairs(WORLD.cars) do
+      if not c.dead and dist(c.x, c.y, s.x, s.y) < 22 then free = false break end
+    end
+    if free then
+      local c = new_car(s.x, s.y, s.a, math.random(1, 3))
+      c.parked = true
+      return
+    end
+  end
+end
+
+function spawn_traffic(near)
+  local i, j
+  if near then
+    local pi = clamp(math.floor(GAME.player.x / CFG.cw), 0, 5)
+    local pj = clamp(math.floor(GAME.player.y / CFG.ch), 0, 4)
+    i = clamp(pi + math.random(-2, 2), 0, 5)
+    j = clamp(pj + math.random(-2, 2), 0, 4)
+  else
+    i, j = math.random(0, 5), math.random(0, 4)
+  end
+  local dir = math.random(0, 3)
+  local c = new_car(node_x(i), node_y(j), 0, math.random(1, 3))
+  c.traffic = true
+  c.ni, c.nj = i, j
+  c.ti, c.tj = i, j
+  c.dir = dir
+  c.speed = math.random(40, 60) / 100
+  local dx, dy = 0, 0
+  if dir == 0 then dx = 1 elseif dir == 1 then dy = 1 elseif dir == 2 then dx = -1 else dy = -1 end
+  c.ti = clamp(i + dx, 0, 5)
+  c.tj = clamp(j + dy, 0, 4)
+  c.angle = atan2(dy, dx)
+  c.x = node_x(i) - dy * 6
+  c.y = node_y(j) + dx * 6
+  return c
+end
+
+function spawn_world()
+  WORLD.cars = {}
+  WORLD.peds = {}
+  WORLD.cops = {}
+  WORLD.bullets = {}
+  WORLD.pickups = {}
+  WORLD.fx = {}
+  WORLD.nodes = {}
+  for j = 0, 4 do
+    for i = 0, 5 do
+      WORLD.nodes[j * 6 + i + 1] = { x = node_x(i), y = node_y(j), i = i, j = j }
+    end
+  end
+  build_city()
+  spawn_parked()
+  for i = 1, 12 do spawn_traffic(false) end
+  for i = 1, 20 do
+    local n = WORLD.nodes[math.random(1, #WORLD.nodes)]
+    local x = n.x + math.random(-14, 14)
+    local y = n.y + math.random(-14, 14)
+    if not solid_at(x, y, 3) then new_ped(x, y, SPR.ped1) end
+  end
+  new_pickup(188, 300, "cash", 100)
+  new_pickup(356, 28, "cash", 80)
+  new_pickup(676, 412, "cash", 120)
+  new_pickup(828, 180, "cash", 90)
+  new_pickup(28, 536, "cash", 100)
+  new_pickup(516, 540, "cash", 150)
+  new_pickup(356, 156, "med", 50)
+  new_pickup(680, 540, "med", 50)
+end
+
+function reset_game()
+  GAME = {}
+  WORLD = {}
+  TITLE = {}
+  GAME.state = "title"
+  GAME.t = 0
+  GAME.money = 0
+  GAME.heat = 0
+  GAME.heat_t = 0
+  GAME.msg = nil
+  GAME.msg_t = 0
+  GAME.shake = 0
+  GAME.fire_cd = 0
+  GAME.use_cd = 0
+  GAME.cop_t = 0
+  GAME.jobn = 0
+  GAME.job = nil
+  GAME.won = false
+  GAME.win_t = 0
+  GAME.prompt = nil
+  GAME.mission = "STEAL THE MARKED RIDE"
+  GAME.target = nil
+  GAME.camx = 0
+  GAME.camy = 0
+  GAME.wasted_t = 0
+  GAME.player = {
+    x = 208, y = 236, angle = 0, facing = 0,
+    health = CFG.health, inv = 0, cool = 0, car = nil,
+    walk = 0, moving = false, dead = false,
+  }
+  GAME.camx = clamp(GAME.player.x - CFG.sw / 2, 0, CFG.ww - CFG.sw - 8)
+  GAME.camy = clamp(GAME.player.y - CFG.sh / 2, 0, CFG.wh - CFG.sh - 8)
+  spawn_world()
+  GAME.ready = true
+end
+
+function nearest_car(p)
+  local best, bd = nil, 22
+  for _, c in ipairs(WORLD.cars) do
+    if not c.dead and not c.police then
+      local d = dist(p.x, p.y, c.x, c.y)
+      if d < bd then
+        bd = d
+        best = c
+      end
+    end
+  end
+  return best, bd
+end
+
+function enter_car(c)
+  local p = GAME.player
+  if not c or c.dead or c.police then return false end
+  if c.traffic then
+    c.traffic = false
+    local ped = new_ped(c.x + 12, c.y + 12, SPR.ped2)
+    ped.panic = 180
+    crime(1)
+    show_msg("CARJACKED")
+  end
+  p.car = c
+  p.x, p.y = c.x, c.y
+  GAME.use_cd = 22
+  snd(SFX.hit)
+  return true
+end
+
+function exit_car()
+  local p = GAME.player
+  local c = p.car
+  if not c then return end
+  local spots = { { 0, 15 }, { 0, -15 }, { 15, 0 }, { -15, 0 } }
+  for _, s in ipairs(spots) do
+    local x, y = c.x + s[1], c.y + s[2]
+    if not solid_at(x, y, 4) then
+      p.x, p.y = x, y
+      break
+    end
+  end
+  p.car = nil
+  p.facing = c.angle
+  GAME.use_cd = 20
+end
+
+function try_fire()
+  if GAME.fire_cd > 0 then return end
+  local p = GAME.player
+  local ang, x, y
+  if p.car then
+    ang = p.car.angle
+    x = p.car.x + math.cos(ang) * 10
+    y = p.car.y + math.sin(ang) * 10
+  else
+    ang = p.facing
+    x = p.x + math.cos(ang) * 7
+    y = p.y + math.sin(ang) * 7
+  end
+  new_bullet("p", x, y, ang, 4.4, 1, 4)
+  GAME.fire_cd = 9
+  spawn_particle(x, y, 0.4, 0.4, 5, 4, 1)
+  snd(SFX.gun)
+  local witnessed = false
+  for _, e in ipairs(WORLD.peds) do
+    if dist(x, y, e.x, e.y) < 80 then witnessed = true end
+    if dist(x, y, e.x, e.y) < 150 then e.panic = 140 end
+  end
+  for _, e in ipairs(WORLD.cops) do
+    if dist(x, y, e.x, e.y) < 170 then witnessed = true end
+  end
+  if witnessed then alert(1) end
+end
+
+function damage_player(n)
+  local p = GAME.player
+  if p.inv > 0 or p.dead then return end
+  p.health = clamp(p.health - n, 0, CFG.health)
+  p.inv = 16
+  GAME.shake = 4
+  snd(SFX.hurt)
+  if p.health <= 0 then
+    p.dead = true
+    GAME.state = "wasted"
+    GAME.wasted_t = 120
+    explosion(p.x, p.y)
+    GAME.heat = 0
+    GAME.heat_t = 0
+  end
+end
+
+function kill_ped(ped, by_car)
+  if ped.dead then return end
+  ped.dead = true
+  burst(ped.x, ped.y, 5, 2, 1.2)
+  snd(SFX.hit)
+  if ped.target and GAME.job and GAME.job.ped == ped then
+    complete_job()
+  else
+    if by_car then crime(2) else crime(1) end
+    if math.random() < 0.35 then
+      new_pickup(ped.x + 3, ped.y, "cash", math.random(30, 90))
+    end
+  end
+end
+
+function damage_car(c, n)
+  if c.dead then return end
+  c.health = c.health - n
+  if c.health <= 0 then
+    c.dead = true
+    explosion(c.x, c.y)
+    local p = GAME.player
+    if p.car == c then
+      p.car = nil
+      p.x, p.y = c.x, c.y
+      damage_player(25)
+    end
+    if c.police then crime(1) end
+    if GAME.job and GAME.job.car == c then
+      GAME.job.car = nil
+      GAME.job.phase = 1
+    end
+  end
+end
+
+function update_msg()
+  if GAME.msg_t > 0 then
+    GAME.msg_t = GAME.msg_t - 1
+    if GAME.msg_t == 0 then GAME.msg = nil end
+  end
+end
+
+function update_effects()
+  for i = #WORLD.fx, 1, -1 do
+    local e = WORLD.fx[i]
+    e.x = e.x + e.vx
+    e.y = e.y + e.vy
+    e.vx = e.vx * 0.92
+    e.vy = e.vy * 0.92
+    e.life = e.life - 1
+    if e.life <= 0 then table.remove(WORLD.fx, i) end
+  end
+end
+
+function update_camera()
+  local p = GAME.player
+  local tx = p.x - CFG.sw / 2
+  local ty = p.y - CFG.sh / 2
+  GAME.camx = GAME.camx + (tx - GAME.camx) * 0.16
+  GAME.camy = GAME.camy + (ty - GAME.camy) * 0.16
+  GAME.camx = clamp(GAME.camx, 0, CFG.ww - CFG.sw - 8)
+  GAME.camy = clamp(GAME.camy, 0, CFG.wh - CFG.sh - 8)
+end
+
+function update_player_foot()
+  local p = GAME.player
+  local dx, dy = 0, 0
+  if btn(INPUT.left) then dx = dx - 1 end
+  if btn(INPUT.right) then dx = dx + 1 end
+  if btn(INPUT.up) then dy = dy - 1 end
+  if btn(INPUT.down) then dy = dy + 1 end
+  local sp = CFG.walk
+  if btn(INPUT.sprint) then sp = CFG.sprint end
+  if dx ~= 0 or dy ~= 0 then
+    local m = math.sqrt(dx * dx + dy * dy)
+    move_actor(p, dx / m * sp, dy / m * sp, 3.5)
+    p.facing = atan2(dy, dx)
+    p.moving = true
+    p.walk = p.walk + sp
+  else
+    p.moving = false
+  end
+  if btn(INPUT.fire) then try_fire() end
+  if GAME.use_cd > 0 then GAME.use_cd = GAME.use_cd - 1 end
+  if btnp(INPUT.use) and GAME.use_cd == 0 then
+    local zone = garage_zone(p)
+    if zone and p.health < CFG.health and GAME.money >= 100 then
+      add_money(-100)
+      p.health = CFG.health
+      show_msg("PATCHED UP -$100")
+      snd(SFX.cash)
+      GAME.use_cd = 20
+    else
+      local c = nearest_car(p)
+      if c then enter_car(c) end
+    end
+  end
+end
+
+function update_player_car()
+  local p = GAME.player
+  local c = p.car
+  if not c or c.dead then p.car = nil return end
+  local thr, st = 0, 0
+  if btn(INPUT.up) then thr = 1 end
+  if btn(INPUT.down) then thr = -1 end
+  if btn(INPUT.left) then st = -1 end
+  if btn(INPUT.right) then st = 1 end
+  local sp = c.speed
+  if thr > 0 then
+    sp = sp + CFG.accel
+  elseif thr < 0 then
+    sp = sp - CFG.accel
+  else
+    sp = sp * CFG.drag
+  end
+  sp = clamp(sp, -CFG.vrev, CFG.vmax)
+  local rate = CFG.turn * clamp(math.abs(sp), 0, 1.4)
+  if st ~= 0 and math.abs(sp) > 0.08 then
+    c.angle = c.angle + st * rate * sign(sp)
+  end
+  c.speed = sp
+  local nx = c.x + math.cos(c.angle) * sp
+  local ny = c.y + math.sin(c.angle) * sp
+  local okx = not solid_at(nx, c.y, 7)
+  local oky = not solid_at(c.x, ny, 7)
+  if not solid_at(nx, ny, 7) then
+    c.x, c.y = nx, ny
+  else
+    if okx then c.x = nx end
+    if oky then c.y = ny end
+    if math.abs(sp) > 1.2 then
+      damage_player(6)
+      c.health = c.health - 1
+      GAME.shake = 5
+      snd(SFX.hit)
+      burst(c.x + math.cos(c.angle) * 8, c.y + math.sin(c.angle) * 8, 4, 4, 1)
+      if c.health <= 0 then damage_car(c, 99) end
+    end
+    c.speed = sp * -0.22
+  end
+  p.x, p.y = c.x, c.y
+  p.facing = c.angle
+  if btn(INPUT.fire) then try_fire() end
+  if GAME.use_cd > 0 then GAME.use_cd = GAME.use_cd - 1 end
+  if btnp(INPUT.use) and GAME.use_cd == 0 then
+    if garage_zone(p) then
+      if GAME.money >= 200 then
+        add_money(-200)
+        GAME.heat = 0
+        GAME.heat_t = 0
+        c.health = c.maxhp
+        show_msg("RESPRAY -$200 COPS LOST")
+        snd(SFX.cash)
+      else
+        show_msg("NEED $200")
+      end
+      GAME.use_cd = 20
+    else
+      exit_car()
+    end
+  end
+end
+
+function garage_zone(p)
+  local g = { x = 190, y = 182, w = 36, h = 28 }
+  if p.x > g.x and p.x < g.x + g.w and p.y > g.y and p.y < g.y + g.h then
+    return g
+  end
+  return nil
+end
+
+function update_player()
+  local p = GAME.player
+  if p.inv > 0 then p.inv = p.inv - 1 end
+  if GAME.fire_cd > 0 then GAME.fire_cd = GAME.fire_cd - 1 end
+  if p.car then update_player_car() else update_player_foot() end
+end
+
+function update_peds()
+  local p = GAME.player
+  for i = #WORLD.peds, 1, -1 do
+    local e = WORLD.peds[i]
+    if e.dead then
+      table.remove(WORLD.peds, i)
+    else
+      e.timer = e.timer - 1
+      if e.timer <= 0 then
+        e.timer = math.random(60, 180)
+        e.dir = math.random(0, 3)
+      end
+      local ax = 0
+      local ay = 0
+      if e.dir == 0 then ay = -1 elseif e.dir == 1 then ay = 1 elseif e.dir == 2 then ax = -1 else ax = 1 end
+      local sp = 0.32
+      if e.panic > 0 then
+        e.panic = e.panic - 1
+        local ang = atan2(e.y - p.y, e.x - p.x)
+        ax, ay = math.cos(ang), math.sin(ang)
+        sp = 0.95
+      end
+      local nx = e.x + ax * sp
+      local ny = e.y + ay * sp
+      if solid_at(nx, ny, 3) or (math.abs(ax) > 0 and solid_at(e.x + ax * 6, e.y, 3)) then
+        e.dir = math.random(0, 3)
+        if e.panic == 0 then e.timer = math.random(40, 100) end
+      else
+        e.x, e.y = nx, ny
+      end
+      e.angle = atan2(ay, ax)
+      if p.car and not p.car.dead then
+        local c = p.car
+        if math.abs(c.speed) > 0.9 and dist(c.x, c.y, e.x, e.y) < 9 then
+          kill_ped(e, true)
+        end
+      end
+    end
+  end
+end
+
+function update_traffic()
+  local p = GAME.player
+  local traffic = 0
+  for _, c in ipairs(WORLD.cars) do
+    if c.traffic and not c.dead then
+      traffic = traffic + 1
+      if dist(c.x, c.y, p.x, p.y) > 560 then
+        local i = clamp(math.floor(p.x / CFG.cw) + math.random(-2, 2), 0, 5)
+        local j = clamp(math.floor(p.y / CFG.ch) + math.random(-2, 2), 0, 4)
+        c.ni, c.nj = i, j
+        c.ti, c.tj = i, j
+        c.prog = 0
+        c.dir = math.random(0, 3)
+        local dx, dy = 0, 0
+        if c.dir == 0 then dx = 1 elseif c.dir == 1 then dy = 1 elseif c.dir == 2 then dx = -1 else dy = -1 end
+        c.ti = clamp(i + dx, 0, 5)
+        c.tj = clamp(j + dy, 0, 4)
+        c.x = node_x(i) - dy * 6
+        c.y = node_y(j) + dx * 6
+      end
+      local ax = node_x(c.ni)
+      local ay = node_y(c.nj)
+      local bx = node_x(c.ti)
+      local by = node_y(c.tj)
+      local dx, dy = sign(bx - ax), sign(by - ay)
+      local seg = CFG.cw
+      if dy ~= 0 then seg = CFG.ch end
+      local step = c.speed / seg
+      local ahead = false
+      local fx = c.x + dx * 16
+      local fy = c.y + dy * 16
+      if dist(fx, fy, p.x, p.y) < 10 then ahead = true end
+      for _, o in ipairs(WORLD.cars) do
+        if o ~= c and not o.dead and dist(fx, fy, o.x, o.y) < 10 then ahead = true break end
+      end
+      for _, o in ipairs(WORLD.peds) do
+        if dist(fx, fy, o.x, o.y) < 8 then ahead = true break end
+      end
+      if not ahead then
+        c.prog = c.prog + step
+        local t = clamp(c.prog, 0, 1)
+        local px = ax + (bx - ax) * t
+        local py = ay + (by - ay) * t
+        c.lat = c.lat + (6 - c.lat) * 0.12
+        c.x = px - dy * c.lat
+        c.y = py + dx * c.lat
+        c.angle = atan2(dy, dx)
+        if c.prog >= 1 then
+          c.prog = c.prog - 1
+          c.ni, c.nj = c.ti, c.tj
+          local opts = {}
+          if c.ni + dx >= 0 and c.ni + dx <= 5 and c.nj + dy >= 0 and c.nj + dy <= 4 then
+            table.insert(opts, { dx, dy })
+          end
+          if c.ni - dy >= 0 and c.ni - dy <= 5 and c.nj + dx >= 0 and c.nj + dx <= 4 then
+            table.insert(opts, { -dy, dx })
+          end
+          if c.ni + dy >= 0 and c.ni + dy <= 5 and c.nj - dx >= 0 and c.nj - dx <= 4 then
+            table.insert(opts, { dy, -dx })
+          end
+          local pick = opts[math.random(1, #opts)]
+          c.ti = c.ni + pick[1]
+          c.tj = c.nj + pick[2]
+          c.lat = 0
+        end
+      end
+      for _, o in ipairs(WORLD.cars) do
+        if o ~= c and not o.dead and o ~= p.car and dist(c.x, c.y, o.x, o.y) < 9 then
+          c.x = c.x + (c.x - o.x) * 0.12
+          c.y = c.y + (c.y - o.y) * 0.12
+        end
+      end
+      if p.car == nil and not p.dead then
+        if dist(c.x, c.y, p.x, p.y) < 7 then
+          damage_player(6)
+          local a = atan2(p.y - c.y, p.x - c.x)
+          p.x = p.x + math.cos(a) * 6
+          p.y = p.y + math.sin(a) * 6
+        end
+      end
+      if p.car then
+        local d = dist(c.x, c.y, p.x, p.y)
+        if d < 11 then
+          c.health = c.health - 1
+          p.car.speed = p.car.speed * 0.7
+          burst(c.x, c.y, 3, 4, 0.8)
+          if c.health <= 0 then damage_car(c, 99) end
+        end
+      end
+    end
+  end
+  if traffic < 10 and GAME.t % 100 == 0 then spawn_traffic(true) end
+end
+
+function offscreen(x, y)
+  return x < GAME.camx - 12 or x > GAME.camx + CFG.sw + 12 or y < GAME.camy - 12 or y > GAME.camy + CFG.sh + 12
+end
+
+function spawn_cop()
+  local p = GAME.player
+  for i = 1, 16 do
+    local a = math.random() * math.pi * 2
+    local r = 150 + math.random() * 120
+    local x = p.x + math.cos(a) * r
+    local y = p.y + math.sin(a) * r
+    if not solid_at(x, y, 4) and offscreen(x, y) then
+      return new_cop(x, y)
+    end
+  end
+  return nil
+end
+
+function update_cops()
+  local p = GAME.player
+  for i = #WORLD.cops, 1, -1 do
+    local c = WORLD.cops[i]
+    local d = dist(c.x, c.y, p.x, p.y)
+    if c.dead or d > 760 or (GAME.heat == 0 and d > 220) then
+      table.remove(WORLD.cops, i)
+    else
+      local a = atan2(p.y - c.y, p.x - c.x)
+      c.angle = a
+      if d > 16 then
+        local nx = c.x + math.cos(a) * 0.92
+        local ny = c.y + math.sin(a) * 0.92
+        if not solid_at(nx, c.y, 4) then c.x = nx end
+        if not solid_at(c.x, ny, 4) then c.y = ny end
+      end
+      c.cd = c.cd - 1
+      if c.cd <= 0 and d < 130 then
+        c.cd = 45 + math.random(0, 40)
+        local err = (math.random() - 0.5) * 0.16
+        new_bullet("c", c.x + math.cos(a) * 7, c.y + math.sin(a) * 7, a + err, 3.4, 9, 10)
+        snd(SFX.gun)
+      end
+      if d < 9 then damage_player(8) end
+    end
+  end
+end
+
+function spawn_police_car()
+  local p = GAME.player
+  local n = WORLD.nodes[math.random(1, #WORLD.nodes)]
+  local d = dist(n.x, n.y, p.x, p.y)
+  if d > 160 and d < 520 and offscreen(n.x, n.y) then
+    local c = new_car(n.x, n.y, 0, 4)
+    c.police = true
+    c.health = 6
+    c.maxhp = 6
+    c.parked = false
+    c.speed = 1.4
+    return c
+  end
+  return nil
+end
+
+function update_police_cars()
+  local p = GAME.player
+  for i = #WORLD.cars, 1, -1 do
+    local c = WORLD.cars[i]
+    if c.police then
+      if c.dead or GAME.heat == 0 then
+        if not c.dead then c.dead = true end
+      else
+        local d = dist(c.x, c.y, p.x, p.y)
+        local want = atan2(p.y - c.y, p.x - c.x)
+        local diff = (want - c.angle + math.pi) % (math.pi * 2) - math.pi
+        c.angle = c.angle + clamp(diff, -0.05, 0.05)
+        c.speed = c.speed + (1.9 - c.speed) * 0.03
+        local nx = c.x + math.cos(c.angle) * c.speed
+        local ny = c.y + math.sin(c.angle) * c.speed
+        local moved = false
+        if not solid_at(nx, c.y, 7) then c.x = nx moved = true end
+        if not solid_at(c.x, ny, 7) then c.y = ny moved = true end
+        if not moved then
+          c.angle = c.angle + 0.4
+          c.speed = c.speed * 0.6
+        end
+        if d < 150 and GAME.t % 90 == 0 then
+          local a = atan2(p.y - c.y, p.x - c.x) + (math.random() - 0.5) * 0.12
+          new_bullet("c", c.x + math.cos(a) * 8, c.y + math.sin(a) * 8, a, 3.6, 8, 10)
+          snd(SFX.gun)
+        end
+        if d < 14 then damage_player(10) end
+      end
+    end
+  end
+end
+
+function update_heat()
+  if GAME.heat > 0 then
+    GAME.heat_t = GAME.heat_t + 1
+    if GAME.heat_t > CFG.heat_cool then
+      GAME.heat_t = 0
+      GAME.heat = GAME.heat - 1
+      if GAME.heat == 0 then show_msg("HEAT CLEARED") end
+    end
+  end
+  local want_cops = GAME.heat
+  if #WORLD.cops > want_cops then
+    table.remove(WORLD.cops)
+  end
+  GAME.cop_t = GAME.cop_t - 1
+  if #WORLD.cops < want_cops and GAME.cop_t <= 0 then
+    GAME.cop_t = 70
+    spawn_cop()
+  end
+  local want_cars = math.floor(GAME.heat / 2)
+  local have = 0
+  for _, c in ipairs(WORLD.cars) do
+    if c.police and not c.dead then have = have + 1 end
+  end
+  if have < want_cars and GAME.t % 120 == 0 then spawn_police_car() end
+end
+
+function update_bullets()
+  local p = GAME.player
+  for i = #WORLD.bullets, 1, -1 do
+    local b = WORLD.bullets[i]
+    b.x = b.x + math.cos(b.angle) * b.speed
+    b.y = b.y + math.sin(b.angle) * b.speed
+    b.life = b.life - 1
+    local kill = b.life <= 0
+    if solid_at(b.x, b.y, 0) then
+      burst(b.x, b.y, 2, 13, 0.6)
+      kill = true
+    end
+    if not kill and b.owner == "p" then
+      for _, e in ipairs(WORLD.peds) do
+        if not e.dead and dist(b.x, b.y, e.x, e.y) < 6 then
+          kill_ped(e, false)
+          kill = true
+          break
+        end
+      end
+    end
+    if not kill and b.owner == "p" then
+      for _, e in ipairs(WORLD.cops) do
+        if not e.dead and dist(b.x, b.y, e.x, e.y) < 6 then
+          e.hp = e.hp - 1
+          burst(e.x, e.y, 3, 2, 0.8)
+          if e.hp <= 0 then
+            e.dead = true
+            crime(3)
+            if math.random() < 0.5 then new_pickup(e.x, e.y, "cash", 60) end
+          end
+          kill = true
+          break
+        end
+      end
+    end
+    if not kill then
+      for _, c in ipairs(WORLD.cars) do
+        if not c.dead and c ~= p.car and dist(b.x, b.y, c.x, c.y) < 8 then
+          if c.police and b.owner == "p" then crime(1) end
+          damage_car(c, 1)
+          burst(b.x, b.y, 2, 4, 1)
+          kill = true
+          break
+        end
+      end
+    end
+    if not kill and b.owner == "c" then
+      if dist(b.x, b.y, p.x, p.y) < 6 and not p.car then
+        damage_player(b.dmg)
+        kill = true
+      elseif p.car and not p.car.dead and dist(b.x, b.y, p.car.x, p.car.y) < 8 then
+        damage_player(math.floor(b.dmg / 2))
+        damage_car(p.car, 1)
+        kill = true
+      end
+    end
+    if kill then table.remove(WORLD.bullets, i) end
+  end
+end
+
+function update_pickups()
+  local p = GAME.player
+  for i = #WORLD.pickups, 1, -1 do
+    local it = WORLD.pickups[i]
+    it.timer = it.timer - 1
+    it.bob = it.bob + 1
+    if it.timer <= 0 and dist(p.x, p.y, it.x, it.y) < 12 then
+      if it.kind == "cash" then
+        add_money(it.value)
+        show_msg("GRAB +$" .. it.value)
+        snd(SFX.cash)
+      elseif it.kind == "med" then
+        p.health = clamp(p.health + it.value, 0, CFG.health)
+        show_msg("MEDKIT +" .. it.value)
+        snd(SFX.cash)
+      end
+      burst(it.x, it.y, 8, 4, 1.2)
+      it.timer = 900
+      local tries = 0
+      it.x = 100 + math.random(0, 700)
+      it.y = 100 + math.random(0, 440)
+      while solid_at(it.x, it.y, 3) and tries < 40 do
+        it.x = 100 + math.random(0, 700)
+        it.y = 100 + math.random(0, 440)
+        tries = tries + 1
+      end
+    end
+  end
+end
+
+function node_dist(n, x, y)
+  return math.abs(n.x - x) + math.abs(n.y - y)
+end
+
+function random_drop()
+  local p = GAME.player
+  local best = WORLD.nodes[1]
+  local bd = -1
+  for _, n in ipairs(WORLD.nodes) do
+    local d = dist(n.x, n.y, p.x, p.y)
+    if d > 280 and d < 700 and d > bd then
+      bd = d
+      best = n
+    end
+  end
+  return { x = best.x, y = best.y }
+end
+
+function pick_mission_car()
+  local p = GAME.player
+  local best = nil
+  local bd = 1e9
+  for _, c in ipairs(WORLD.cars) do
+    if c.parked and not c.dead and c ~= p.car then
+      local d = dist(c.x, c.y, p.x, p.y)
+      if d < bd then bd = d best = c end
+    end
+  end
+  for _, c in ipairs(WORLD.cars) do c.marked = false end
+  if best then best.marked = true end
+  return best
+end
+
+function spawn_hit_target()
+  local p = GAME.player
+  for i = 1, 30 do
+    local n = WORLD.nodes[math.random(1, #WORLD.nodes)]
+    local x = n.x + math.random(-20, 20)
+    local y = n.y + math.random(-20, 20)
+    local d = dist(x, y, p.x, p.y)
+    if d > 220 and d < 520 and not solid_at(x, y, 4) then
+      local e = new_ped(x, y, SPR.ped2)
+      e.target = true
+      e.hp = 2
+      e.base = SPR.ped2
+      return e
+    end
+  end
+  return new_ped(GAME.ww / 2, 300, SPR.ped2)
+end
+
+function new_job()
+  GAME.jobn = GAME.jobn + 1
+  for _, c in ipairs(WORLD.cars) do c.marked = false end
+  if GAME.jobn % 3 == 0 then
+    local e = spawn_hit_target()
+    GAME.job = { type = "hit", ped = e, phase = 1, payout = 450 + GAME.jobn * 50 }
+    show_msg("JOB: HIT THE MARKED TARGET")
+  else
+    local c = pick_mission_car()
+    if c then
+      GAME.job = { type = "steal", car = c, phase = 1, payout = 300 + GAME.jobn * 40 }
+      show_msg("JOB: STEAL THE MARKED RIDE")
+    else
+      local e = spawn_hit_target()
+      GAME.job = { type = "hit", ped = e, phase = 1, payout = 450 + GAME.jobn * 50 }
+      show_msg("JOB: HIT THE MARKED TARGET")
+    end
+  end
+  snd(SFX.job)
+end
+
+function complete_job()
+  local j = GAME.job
+  if not j then return end
+  add_money(j.payout)
+  if j.car then j.car.marked = false end
+  GAME.heat = clamp(GAME.heat + 1, 0, CFG.heat_max)
+  GAME.heat_t = 0
+  GAME.shake = 4
+  show_msg("PAYDAY +$" .. j.payout)
+  snd(SFX.cash)
+  burst(GAME.player.x, GAME.player.y, 12, 4, 1.6)
+  if GAME.money >= CFG.money_win and not GAME.won then
+    GAME.won = true
+    GAME.win_t = 300
+    show_msg("CITY KINGPIN")
+    snd(SFX.job)
+  end
+  new_job()
+end
+
+function update_job()
+  local j = GAME.job
+  if not j then return end
+  local p = GAME.player
+  if j.type == "steal" then
+    if not j.car or j.car.dead then
+      j.car = pick_mission_car()
+      j.phase = 1
+      if not j.car then
+        j.type = "hit"
+        j.ped = spawn_hit_target()
+        j.payout = 450 + GAME.jobn * 50
+        show_msg("JOB: HIT THE MARKED TARGET")
+        return
+      end
+    end
+    if j.car then
+      if j.phase == 1 then
+        GAME.mission = "STEAL THE MARKED RIDE"
+        GAME.target = { x = j.car.x, y = j.car.y }
+        if p.car == j.car then
+          j.phase = 2
+          j.drop = random_drop()
+          show_msg("DELIVER IT TO THE DROP")
+          snd(SFX.job)
+        end
+      else
+        GAME.mission = "DELIVER THE RIDE"
+        j.drop = j.drop or random_drop()
+        GAME.target = j.drop
+        if p.car == j.car and dist(p.x, p.y, j.drop.x, j.drop.y) < 30 and math.abs(j.car.speed) < 1.5 then
+          complete_job()
+        end
+      end
+    end
+  else
+    if j.ped and not j.ped.dead then
+      GAME.mission = "TAKE OUT THE TARGET"
+      GAME.target = { x = j.ped.x, y = j.ped.y }
+    else
+      GAME.target = { x = p.x, y = p.y }
+    end
+  end
+end
+
+function update_prompt()
+  local p = GAME.player
+  GAME.prompt = nil
+  if garage_zone(p) then
+    if p.car then
+      GAME.prompt = "A: RESPRAY $200"
+    elseif p.health < CFG.health then
+      GAME.prompt = "A: HEAL $100"
+    end
+  elseif not p.car then
+    local c, d = nearest_car(p)
+    if c then
+      if c.marked then
+        GAME.prompt = "A: STEAL MARKED RIDE"
+      else
+        GAME.prompt = "A: STEAL RIDE"
+      end
+    end
+  end
+end
+
+function update_shake()
+  if GAME.shake > 0 then
+    GAME.shake = GAME.shake * 0.85
+    if GAME.shake < 0.5 then GAME.shake = 0 end
+  end
+end
+
+function update_play()
+  update_player()
+  update_peds()
+  update_traffic()
+  update_cops()
+  update_police_cars()
+  update_bullets()
+  update_pickups()
+  update_job()
+  update_heat()
+  update_effects()
+  update_camera()
+  update_prompt()
+  update_msg()
+  update_shake()
+  for i = #WORLD.cars, 1, -1 do
+    local c = WORLD.cars[i]
+    if c.dead then
+      c.dead_t = (c.dead_t or 0) + 1
+      if c.dead_t > 150 then table.remove(WORLD.cars, i) end
+    end
+  end
+  local parked = 0
+  for _, c in ipairs(WORLD.cars) do
+    if c.parked and not c.dead then parked = parked + 1 end
+  end
+  if parked < 7 then respawn_parked() end
+end
+
+function respawn()
+  local p = GAME.player
+  p.dead = false
+  p.health = CFG.health
+  p.car = nil
+  p.inv = 60
+  p.x, p.y = 208, 236
+  p.facing = 0
+  add_money(-150)
+  GAME.heat = 0
+  GAME.heat_t = 0
+  WORLD.cops = {}
+  WORLD.bullets = {}
+  for _, c in ipairs(WORLD.cars) do
+    if c.police then c.dead = true end
+  end
+  if GAME.job then
+    if GAME.job.type == "steal" then
+      GAME.job.phase = 1
+      GAME.job.drop = nil
+      if not GAME.job.car or GAME.job.car.dead then
+        GAME.job.car = pick_mission_car()
+      end
+    end
+  end
+  GAME.camx = clamp(p.x - CFG.sw / 2, 0, CFG.ww - CFG.sw - 8)
+  GAME.camy = clamp(p.y - CFG.sh / 2, 0, CFG.wh - CFG.sh - 8)
+  GAME.state = "play"
+  show_msg("PATCHED UP -$150")
+end
+
+function draw_ground(camx, camy)
+  local mx = math.floor(camx / 8)
+  local my = math.floor(camy / 8)
+  map(mx, my, 31, 18, mx * 8 - camx, my * 8 - camy)
+end
+
+function draw_props(camx, camy)
+  for _, t in ipairs(WORLD.trees) do
+    local x, y = t.x - camx, t.y - camy
+    if x > -10 and x < 250 and y > -10 and y < 146 then
+      elli(x + 2, y + t.s, t.s + 1, 2, 0)
+      rect(x - 1, y + 2, 3, 4, 14)
+      circ(x, y, t.s, 7)
+      circ(x, y, t.s - 1, 6)
+      circ(x - 1, y - 1, math.max(1, t.s - 3), 5)
+    end
+  end
+  for _, l in ipairs(WORLD.lamps) do
+    local x, y = l.x - camx, l.y - camy
+    if x > -6 and x < 246 and y > -6 and y < 142 then
+      rect(x, y, 2, 6, 15)
+      rect(x - 1, y - 1, 4, 2, 4)
+      circb(x, y, 3, 4)
+    end
+  end
+end
+
+function draw_buildings(camx, camy)
+  for _, b in ipairs(WORLD.buildings) do
+    local x, y = b.x - camx, b.y - camy
+    if x < 240 and x + b.w > 0 and y < 136 and y + b.h > 0 then
+      rect(x + 3, y + 3, b.w, b.h, 0)
+      rect(x, y, b.w, b.h, b.base)
+      rect(x + 2, y + 2, b.w - 4, b.h - 4, b.roof)
+      rectb(x, y, b.w, b.h, b.edge)
+      rectb(x + 2, y + 2, b.w - 4, b.h - 4, b.edge)
+      if b.w > 40 and b.h > 30 then
+        rectb(x + 6, y + 6, b.w - 12, b.h - 12, b.edge)
+        local tx = x + 10 + (b.seed * 13) % math.max(1, b.w - 28)
+        local ty = y + 10 + (b.seed * 29) % math.max(1, b.h - 28)
+        circ(tx, ty, 3, b.edge)
+        circb(tx, ty, 3, b.base)
+      end
+      local n = math.floor(b.w / 11)
+      for i = 1, n do
+        local wx = x + 4 + (i - 1) * (b.w - 8) / n
+        local lit = (i + b.seed) % 3 == 0
+        rect(wx, y + b.h - 3, 3, 2, lit and 4 or 15)
+      end
+      for i = 1, b.ac do
+        local ax = x + 6 + (i * 29 + b.seed * 7) % math.max(1, b.w - 18)
+        local ay = y + 6 + (i * 17 + b.seed * 5) % math.max(1, b.h - 18)
+        rect(ax, ay, 6, 4, 13)
+        rectb(ax, ay, 6, 4, 15)
+      end
+      rect(x + math.floor(b.w / 2) - 2, y + b.h - 2, 4, 2, 4)
+    end
+  end
+end
+
+function draw_pickups(camx, camy)
+  for _, it in ipairs(WORLD.pickups) do
+    if it.timer <= 0 then
+      local x, y = it.x - camx, it.y - camy
+      local bob = math.sin((GAME.t + it.bob) * 0.12) * 1.5
+      if x > -10 and x < 250 and y > -10 and y < 146 then
+        if it.kind == "cash" then
+          rect(x - 2, y - 2 + bob, 5, 5, 4)
+          rectb(x - 2, y - 2 + bob, 5, 5, 15)
+          rect(x - 1, y - 1 + bob, 2, 2, 10)
+        else
+          rect(x - 2, y - 2 + bob, 5, 5, 12)
+          rect(x - 1, y - 2 + bob, 1, 5, 2)
+          rect(x - 2, y - 1 + bob, 5, 1, 2)
+        end
+      end
+    end
+  end
+end
+
+function draw_char(e, base, camx, camy, bob)
+  local x, y = e.x - camx, e.y - camy + (bob or 0)
+  if x > -16 and x < 256 and y > -16 and y < 152 then
+    elli(x, y + 5, 4, 2, 0)
+    spr(base + dir8(e.angle) * 2, math.floor(x) - 8, math.floor(y) - 8, 0, 1, false, 0, 2, 2)
+  end
+end
+
+function draw_car(c, camx, camy)
+  if c.dead then return end
+  local x, y = c.x - camx, c.y - camy
+  if x > -20 and x < 260 and y > -20 and y < 156 then
+    elli(x, y + 5, 8, 3, 0)
+    if c.marked then
+      local pulse = math.sin(GAME.t * 0.2) * 2
+      line(x - 6, y - 14, x, y - 18 - pulse, 4)
+      line(x, y - 18 - pulse, x + 6, y - 14, 4)
+      line(x + 6, y - 14, x, y - 10, 4)
+      line(x, y - 10, x - 6, y - 14, 4)
+    end
+    spr(c.base + dir8(c.angle) * 2, math.floor(x) - 8, math.floor(y) - 8, 0, 1, false, 0, 2, 2)
+  end
+end
+
+function draw_entities(camx, camy)
+  for _, e in ipairs(WORLD.peds) do
+    draw_char(e, e.base, camx, camy, math.sin((GAME.t + e.step) * 0.2) * 0.6)
+  end
+  for _, e in ipairs(WORLD.cops) do
+    draw_char(e, e.base, camx, camy, 0)
+  end
+  local p = GAME.player
+  for _, c in ipairs(WORLD.cars) do
+    if c ~= p.car then draw_car(c, camx, camy) end
+  end
+  if p.car then
+    draw_car(p.car, camx, camy)
+  elseif not p.dead then
+    local bob = 0
+    if p.moving then bob = math.sin(p.walk * 0.55) * 0.8 end
+    draw_char(p, SPR.player, camx, camy, bob)
+    if p.inv > 0 and math.floor(GAME.t / 2) % 2 == 0 then
+      circb(p.x - camx, p.y - camy, 7, 12)
+    end
+  end
+end
+
+function draw_bullets(camx, camy)
+  for _, b in ipairs(WORLD.bullets) do
+    local x, y = b.x - camx, b.y - camy
+    line(x - math.cos(b.angle) * 4, y - math.sin(b.angle) * 4, x, y, b.color)
+    rect(x, y, 2, 2, b.color)
+  end
+end
+
+function draw_fx(camx, camy)
+  for _, e in ipairs(WORLD.fx) do
+    local x, y = e.x - camx, e.y - camy
+    if e.s > 1 then
+      circ(x, y, e.s, e.c)
+    else
+      rect(x, y, 2, 2, e.c)
+    end
+  end
+end
+
+function draw_target_world(camx, camy)
+  local t = GAME.target
+  if not t then return end
+  local x, y = t.x - camx, t.y - camy
+  if x < 0 or x > 240 or y < 0 or y > 136 then return end
+  local pulse = 2 + math.sin(GAME.t * 0.15) * 2
+  if GAME.job and GAME.job.phase == 2 then
+    circb(x, y, 18 + pulse, 4)
+    circb(x, y, 10, 4)
+  else
+    line(x, y - 14 - pulse, x + 5, y - 9 - pulse, 4)
+    line(x + 5, y - 9 - pulse, x, y - 4 - pulse, 4)
+    line(x, y - 4 - pulse, x - 5, y - 9 - pulse, 4)
+    line(x - 5, y - 9 - pulse, x, y - 14 - pulse, 4)
+  end
+end
+
+function draw_arrow(camx, camy)
+  local t = GAME.target
+  if not t then return end
+  local sx, sy = t.x - camx, t.y - camy
+  if sx > 10 and sx < 230 and sy > 16 and sy < 118 then return end
+  local ang = atan2(sy - 68, sx - 120)
+  local cx = clamp(sx, 12, 228)
+  local cy = clamp(sy, 18, 116)
+  local c = 4
+  if math.floor(GAME.t / 10) % 2 == 0 then c = 13 end
+  local x1 = cx + math.cos(ang) * 6
+  local y1 = cy + math.sin(ang) * 6
+  local x2 = cx + math.cos(ang + 2.4) * 6
+  local y2 = cy + math.sin(ang + 2.4) * 6
+  local x3 = cx + math.cos(ang - 2.4) * 6
+  local y3 = cy + math.sin(ang - 2.4) * 6
+  tri(x1, y1, x2, y2, x3, y3, c)
+end
+
+function star(x, y, c)
+  line(x - 3, y, x + 3, y, c)
+  line(x, y - 3, x, y + 3, c)
+  line(x - 2, y - 2, x + 2, y + 2, c)
+  line(x - 2, y + 2, x + 2, y - 2, c)
+end
+
+function draw_minimap()
+  local mx, my, mw, mh = 184, 14, 52, 34
+  local sx, sy = mw / CFG.ww, mh / CFG.wh
+  rect(mx - 1, my - 1, mw + 2, mh + 2, 15)
+  rect(mx, my, mw, mh, 0)
+  for i = 0, 5 do
+    local x = mx + node_x(i) * sx
+    rect(x, my, 2, mh, 15)
+  end
+  for j = 0, 4 do
+    local y = my + node_y(j) * sy
+    rect(mx, y, mw, 2, 15)
+  end
+  for _, b in ipairs(WORLD.buildings) do
+    rect(mx + b.x * sx, my + b.y * sy, math.max(1, b.w * sx), math.max(1, b.h * sy), 8)
+  end
+  local p = GAME.player
+  local gx, gy = 208, 196
+  if math.floor(GAME.t / 15) % 3 ~= 0 then rect(mx + gx * sx, my + gy * sy, 2, 2, 6) end
+  if GAME.target then
+    local tx = mx + GAME.target.x * sx
+    local ty = my + GAME.target.y * sy
+    if math.floor(GAME.t / 12) % 2 == 0 then rect(tx - 1, ty - 1, 3, 3, 4) end
+  end
+  for _, c in ipairs(WORLD.cops) do
+    rect(mx + c.x * sx, my + c.y * sy, 2, 2, 2)
+  end
+  for _, c in ipairs(WORLD.cars) do
+    if c.police and not c.dead then rect(mx + c.x * sx, my + c.y * sy, 2, 2, 2) end
+  end
+  rect(mx + p.x * sx - 1, my + p.y * sy - 1, 3, 3, 12)
+end
+
+function draw_hud()
+  local p = GAME.player
+  rect(0, 0, 240, 11, 0)
+  print("HP", 3, 3, 13)
+  rect(16, 3, 44, 5, 15)
+  local hc = 6
+  if p.health <= 50 then hc = 9 end
+  if p.health <= 25 then hc = 2 end
+  rect(16, 3, math.floor(44 * p.health / CFG.health), 5, hc)
+  for i = 1, 5 do
+    local on = i <= GAME.heat
+    local blink = GAME.heat_t > CFG.heat_cool - 90 and math.floor(GAME.t / 6) % 2 == 0
+    local c = 15
+    if on then c = blink and 15 or 4 end
+    star(96 + (i - 1) * 10, 6, c)
+  end
+  local s = "$" .. GAME.money
+  print(s, 236 - tw(s), 3, 4)
+  draw_minimap()
+  rect(0, 124, 240, 12, 0)
+  print(GAME.mission or "", 4, 127, 7)
+  if GAME.prompt then
+    local w = tw(GAME.prompt)
+    rect(120 - w / 2 - 2, 111, w + 4, 9, 0)
+    center(GAME.prompt, 113, 13)
+  end
+  if GAME.msg and GAME.msg_t > 0 then
+    local w = tw(GAME.msg)
+    rect(120 - w / 2 - 2, 98, w + 4, 9, 0)
+    center(GAME.msg, 100, 12)
+  end
+  if GAME.won and GAME.win_t > 0 then
+    GAME.win_t = GAME.win_t - 1
+    rect(54, 54, 132, 26, 0)
+    rectb(54, 54, 132, 26, 4)
+    center("CITY KINGPIN", 58, 4, 1)
+    center("YOU RUN THIS TOWN", 70, 12)
+  end
+  if GAME.heat >= 3 and math.floor(GAME.t / 30) % 2 == 0 then
+    print("WANTED", 96, 15, 2)
+  end
+end
+
+function draw_wasted()
+  rect(0, 44, 240, 34, 0)
+  rect(0, 44, 240, 1, 2)
+  rect(0, 77, 240, 1, 2)
+  center("WASTED", 48, 2, 3)
+  center("RESPAWNING...", 69, 12)
+end
+
+function draw_garage(camx, camy)
+  local x, y = 190 - camx, 182 - camy
+  if x < 240 and x > -40 and y < 136 and y > -32 then
+    rect(x, y, 36, 28, 0)
+    rectb(x, y, 36, 28, 6)
+    rectb(x + 2, y + 2, 32, 24, 7)
+    print("G", x + 14, y + 8, 4, false, 2)
+    local hot = GAME.heat > 0 or GAME.player.health < CFG.health
+    if hot and math.floor(GAME.t / 12) % 2 == 0 then
+      rect(x + 28, y + 20, 5, 5, 4)
+    end
+  end
+end
+
+function draw_title()
+  cls(0)
+  for i = 0, 12 do
+    local c = 0
+    if i < 3 then c = 8 elseif i < 6 then c = 15 end
+    rect(0, i * 4, 240, 4, c)
+  end
+  circ(214, 22, 11, 12)
+  circ(210, 19, 2, 13)
+  circ(219, 25, 1, 13)
+  for _, b in ipairs(TITLE.sky) do
+    rect(b.x, 96 - b.h, b.w, b.h, 8)
+    for wy = 0, math.floor(b.h / 8) - 1 do
+      for wx = 0, math.floor(b.w / 6) - 1 do
+        if (wx * 3 + wy * 7 + b.seed) % 5 == 0 then
+          rect(b.x + 2 + wx * 6, 96 - b.h + 3 + wy * 8, 2, 2, 4)
+        end
+      end
+    end
+  end
+  rect(0, 96, 240, 40, 15)
+  rect(0, 96, 240, 2, 13)
+  for i = 0, 29 do rect(i * 8, 118, 4, 1, 4) end
+  local cx = (GAME.t * 1.6) % 290 - 40
+  elli(cx, 111, 8, 2, 0)
+  spr(SPR.car3, cx - 8, 101, 0, 1, false, 0, 2, 2)
+  line(cx + 8, 105, cx + 20, 105, 4)
+  rect(44, 10, 152, 44, 0)
+  rectb(44, 10, 152, 44, 8)
+  rectb(45, 11, 150, 42, 1)
+  center(CFG.title, 18, 4, 3)
+  center(CFG.sub, 40, 12)
+  center("A NEON CITY CRIME SANDBOX", 47, 13)
+  local s = "PRESS Z TO START"
+  if math.floor(GAME.t / 20) % 2 == 0 then
+    local w = tw(s)
+    rect(120 - w / 2 - 2, 60, w + 4, 9, 0)
+    center(s, 62, 4)
+  end
+  center("ARROWS MOVE   Z SHOOT   X ENTER/EXIT", 122, 13)
+  center("C SPRINT   STEAL RIDES   RUN JOBS", 130, 4)
+end
+
+function draw_game()
+  local p = GAME.player
+  local camx = math.floor(GAME.camx)
+  local camy = math.floor(GAME.camy)
+  if GAME.shake > 0.5 then
+    camx = camx + math.floor(math.sin(GAME.t * 1.7) * GAME.shake)
+    camy = camy + math.floor(math.cos(GAME.t * 2.3) * GAME.shake)
+  end
+  cls(0)
+  draw_ground(camx, camy)
+  draw_props(camx, camy)
+  draw_buildings(camx, camy)
+  draw_garage(camx, camy)
+  draw_pickups(camx, camy)
+  draw_target_world(camx, camy)
+  draw_entities(camx, camy)
+  draw_bullets(camx, camy)
+  draw_fx(camx, camy)
+  draw_arrow(camx, camy)
+  draw_hud()
+end
+
+function init_title()
+  TITLE.sky = {}
+  local x = -4
+  while x < 244 do
+    local w = math.random(14, 32)
+    local h = math.random(20, 70)
+    table.insert(TITLE.sky, { x = x, w = w, h = h, seed = math.random(1, 99) })
+    x = x + w + math.random(1, 6)
+  end
+end
+
+function start_game()
+  GAME.state = "play"
+  if not GAME.job then new_job() end
+end
+
+function TIC()
+  GAME.t = GAME.t + 1
+  if GAME.state == "title" then
+    draw_title()
+    if btnp(INPUT.fire) or btnp(INPUT.use) then
+      start_game()
+    end
+    return
+  end
+  if GAME.state == "wasted" then
+    GAME.wasted_t = GAME.wasted_t - 1
+    update_effects()
+    update_shake()
+    draw_game()
+    draw_wasted()
+    if GAME.wasted_t <= 0 then respawn() end
+    return
+  end
+  update_play()
+  draw_game()
+end
+
+math.randomseed(1234)
+reset_game()
+init_title()
+bake_art()
+bake_audio()

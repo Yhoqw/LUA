@@ -1,0 +1,347 @@
+title Sokoban Bomberman
+author Yazdan Ali Khan
+norepeat_action
+
+========
+OBJECTS
+========
+
+Background
+#1b1b22
+
+Wall
+#3a4a5a #22303c
+00000
+01110
+01110
+01110
+00000
+
+Rock
+#8a5a2b #5a3a1b
+.000.
+00000
+00100
+00000
+.000.
+
+Crate
+#c98b3a #6a4a1a
+00000
+0...0
+0...0
+0...0
+00000
+
+PlayerDown
+#e8f0ff #2a6fd6 #101018
+.000.
+.000.
+.111.
+.222.
+.2.2.
+
+PlayerUp
+#e8f0ff #2a6fd6 #101018
+.000.
+.111.
+.000.
+.222.
+.2.2.
+
+PlayerLeft
+#e8f0ff #2a6fd6 #101018
+.000.
+10...
+100..
+.222.
+.2.2.
+
+PlayerRight
+#e8f0ff #2a6fd6 #101018
+.000.
+...01
+..001
+.222.
+.2.2.
+
+Bomb3
+#ffe066 #1a1a1a
+..0..
+.111.
+.111.
+.111.
+..0..
+
+Bomb2
+#ff8a3a #1a1a1a
+..0..
+.111.
+.111.
+.111.
+..0..
+
+Bomb1
+#ff3a2a #1a1a1a
+..0..
+.111.
+.111.
+.111.
+..0..
+
+Blast
+#ffe066 #ff6a1a
+..0..
+.000.
+00000
+.000.
+..0..
+
+BlastUp
+#ffe066 #ff6a1a
+..0..
+.000.
+.000.
+.000.
+.000.
+
+BlastUp2
+#ffe066 #ff6a1a
+..0..
+.000.
+..0..
+.....
+.....
+
+BlastDown
+#ffe066 #ff6a1a
+.000.
+.000.
+.000.
+.000.
+..0..
+
+BlastDown2
+#ffe066 #ff6a1a
+.....
+.....
+..0..
+.000.
+..0..
+
+BlastLeft
+#ffe066 #ff6a1a
+.....
+..0..
+00000
+..0..
+.....
+
+BlastLeft2
+#ffe066 #ff6a1a
+.....
+.....
+0000.
+.000.
+.....
+
+BlastRight
+#ffe066 #ff6a1a
+.....
+..0..
+00000
+..0..
+.....
+
+BlastRight2
+#ffe066 #ff6a1a
+.....
+.....
+.0000
+.000.
+.....
+
+FireOld
+#7a3a1a #3a1a0a
+..0..
+.000.
+..0..
+.000.
+..0..
+
+Guard
+#b05ad6 #3a0a5a #ffe066
+.111.
+10000
+10110
+10010
+.111.
+
+Pad
+#3ad67a #0a5a2a
+.....
+.000.
+.000.
+.000.
+.....
+
+Gate
+#3ad67a #0a3a1a
+00000
+0.0.0
+00000
+0.0.0
+00000
+
+Exit
+#ffe066 #8a6a1a 
+.111.
+01000
+01110
+01000
+.111.
+
+Fresh
+transparent
+
+=======
+LEGEND
+=======
+
+. = Background
+# = Wall
+O = Rock
+X = Crate
+P = PlayerDown
+_ = Pad
+D = Gate
+E = Exit
+G = Guard
+
+Player = PlayerUp or PlayerDown or PlayerLeft or PlayerRight
+Solid = Wall or Rock or Crate or Bomb1 or Bomb2 or Bomb3 or Guard or Gate
+BlastBlock = Wall or Rock or Crate or Gate
+HotFire = Blast or BlastUp or BlastUp2 or BlastDown or BlastDown2 or BlastLeft or BlastLeft2 or BlastRight or BlastRight2
+Fire = HotFire or FireOld
+
+=======
+SOUNDS
+=======
+
+Player Move 4123412
+Crate Move 36772507
+Player CantMove 41234
+Sfx0 213424
+Sfx1 85120702
+Sfx2 4189907
+
+================
+COLLISIONLAYERS
+================
+
+Background
+Pad, Exit
+Wall, Rock, Crate, Bomb1, Bomb2, Bomb3, Guard, Gate, PlayerUp, PlayerDown, PlayerLeft, PlayerRight
+FireOld, Blast, BlastUp, BlastUp2, BlastDown, BlastDown2, BlastLeft, BlastLeft2, BlastRight, BlastRight2
+Fresh
+
+======
+RULES
+======
+
+left [ > Player ] -> [ > PlayerLeft ]
+right [ > Player ] -> [ > PlayerRight ]
+up [ > Player ] -> [ > PlayerUp ]
+down [ > Player ] -> [ > PlayerDown ]
+
+[ > Player | Crate ] -> [ > Player | > Crate ]
+
+left [ action PlayerLeft | no Solid ] -> [ PlayerLeft | Bomb3 Fresh ] sfx0
+right [ action PlayerRight | no Solid ] -> [ PlayerRight | Bomb3 Fresh ] sfx0
+up [ action PlayerUp | no Solid ] -> [ PlayerUp | Bomb3 Fresh ] sfx0
+down [ action PlayerDown | no Solid ] -> [ PlayerDown | Bomb3 Fresh ] sfx0
+
+late [ HotFire ] -> [ FireOld ]
+
+late [ Bomb1 no Fresh ] -> [ Blast ] sfx1
+late [ Bomb2 no Fresh ] -> [ Bomb1 ]
+late [ Bomb3 no Fresh ] -> [ Bomb2 ]
+late [ Fresh ] -> []
+
+late [ Fire Bomb1 ] -> [ Blast ]
++ late [ Fire Bomb2 ] -> [ Blast ]
++ late [ Fire Bomb3 ] -> [ Blast ]
++ late [ Fire | Bomb1 ] -> [ Fire | Blast ]
++ late [ Fire | Bomb2 ] -> [ Fire | Blast ]
++ late [ Fire | Bomb3 ] -> [ Fire | Blast ]
++ late up [ Blast | no BlastBlock no HotFire ] -> [ Blast | BlastUp ]
++ late up [ BlastUp | no BlastBlock no HotFire ] -> [ BlastUp | BlastUp2 ]
++ late down [ Blast | no BlastBlock no HotFire ] -> [ Blast | BlastDown ]
++ late down [ BlastDown | no BlastBlock no HotFire ] -> [ BlastDown | BlastDown2 ]
++ late left [ Blast | no BlastBlock no HotFire ] -> [ Blast | BlastLeft ]
++ late left [ BlastLeft | no BlastBlock no HotFire ] -> [ BlastLeft | BlastLeft2 ]
++ late right [ Blast | no BlastBlock no HotFire ] -> [ Blast | BlastRight ]
++ late right [ BlastRight | no BlastBlock no HotFire ] -> [ BlastRight | BlastRight2 ]
+
+late [ Blast | Rock ] -> [ Blast | ]
+late up [ BlastUp | Rock ] -> [ BlastUp | ]
+late down [ BlastDown | Rock ] -> [ BlastDown | ]
+late left [ BlastLeft | Rock ] -> [ BlastLeft | ]
+late right [ BlastRight | Rock ] -> [ BlastRight | ]
+
+late [ Fire Guard ] -> [ Fire ]
+late [ Fire Player ] -> restart sfx1
+
+late [ Pad Crate | Gate ] -> [ Pad Crate | ] sfx2
+
+late [ FireOld ] -> []
+
+==============
+WINCONDITIONS
+==============
+
+Some Player on Exit
+
+=======
+LEVELS
+=======
+
+MESSAGE Press X to drop a bomb ahead. Back away before it blows. Blow up the cracked rock. Arrow keys move. Push the crate onto the green plate to open the gate. Reach the exit. 
+
+###############
+#.....#....##.#
+#.....#.._DE#.#
+#.....#....##.#
+#.....O..X....#
+#.P...O.......#
+#.....O.......#
+#.....#.......#
+###############
+
+MESSAGE Guards do not block the blast. One bomb can burn through a whole line.
+
+###############
+#......#......#
+#.P....GG....E#
+#......#......#
+#......#......#
+#......#......#
+#......#......#
+###############
+
+
+MESSAGE Clear the rock, blast the guard, then push the crate onto the last plate.
+
+###############
+#.....#.#.....#
+#.....O.#.....#
+#.....O.#.....#
+#.P...O.G.....#
+#.....O.#.....#
+#.....O.#.X._.#
+#.....#.#...D.#
+#.....#.#..#E##
+#.....#.#..####
+###############
+
+MESSAGE You escaped the mine. Thanks for playing!

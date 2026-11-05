@@ -1,0 +1,982 @@
+CFG = {
+  title = "DUNGEON KITCHEN", sub = "COOK WHAT YOU KILL", by = "YAZDAN ALI KHAN",
+  sw = 240, sh = 136, ts = 8, gw = 30, gh = 17,
+  speed = 1.25, hp = 6, hunger_max = 100, hunger_rate = 0.022,
+  attack_cd = 18, attack_t = 10, attack_reach = 15,
+  invuln = 40, poison_t = 180, buff_t = 600,
+  fire_range = 22, npc_range = 18, stair_range = 14,
+  floors = 3, start_title = true,
+}
+
+INPUT = {
+  up = 0, down = 1, left = 2, right = 3,
+  attack = 4, use = 5, eat = 6,
+}
+
+TILE = { wall = 1, floor = 2 }
+
+SPR = {
+  player = 256, slime = 260, bat = 264, shroom = 268,
+  boss = 272, npc = 276, fire = 280, stairs = 284,
+  meat = 300, wing = 301, cap = 302, goo = 303,
+}
+
+SFX = { hit = 0, hurt = 1, cook = 2, eat = 3, drop = 4, win = 5 }
+
+SEASONS = {
+  { name = "SPRING", col = 11, slime = 3, bat = 1, shroom = 1, hunger = 1.0 },
+  { name = "SUMMER", col = 10, slime = 1, bat = 2, shroom = 1, hunger = 1.2 },
+  { name = "AUTUMN", col = 9, slime = 1, bat = 1, shroom = 3, hunger = 1.0 },
+  { name = "WINTER", col = 12, slime = 1, bat = 3, shroom = 1, hunger = 1.4 },
+}
+
+PARTS = {
+  meat = { name = "MEAT", col = 8, spr = SPR.meat, hunger = 8, poison = 1 },
+  wing = { name = "WING", col = 7, spr = SPR.wing, hunger = 7, poison = 1 },
+  cap = { name = "CAP", col = 14, spr = SPR.cap, hunger = 6, poison = 2 },
+  goo = { name = "GOO", col = 11, spr = SPR.goo, hunger = 5, poison = 1 },
+}
+
+RECIPES = {
+  { name = "SKEWER", need = { meat = 1, cap = 1 }, hunger = 35, buff = "POWER", col = 9 },
+  { name = "STEW", need = { meat = 1, goo = 1 }, hunger = 45, buff = "DEFENSE", col = 8 },
+  { name = "ROAST", need = { wing = 1, cap = 1 }, hunger = 30, buff = "SPEED", col = 12 },
+  { name = "JELLY", need = { goo = 2 }, hunger = 25, buff = "REGEN", col = 11 },
+}
+
+ART = {
+  player = {
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000012332100000",
+    "0000012222100000",
+    "0000112222110000",
+    "0001222222210000",
+    "0001223332210000",
+    "0001222222210000",
+    "0001222222210000",
+    "0000112222110000",
+    "0000011001100000",
+    "0000011001100000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+  },
+  slime = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000122222210000",
+    "0001223322210000",
+    "0001233322210000",
+    "0001222222210000",
+    "0012222222221000",
+    "0012222222221000",
+    "0012222222221000",
+    "0001222222210000",
+    "0000111111110000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  bat = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0001100000110000",
+    "0012210001221000",
+    "0122221112222100",
+    "1222222222222210",
+    "1222232223222210",
+    "0122222222222210",
+    "0012222222222100",
+    "0001222222221000",
+    "0000122222210000",
+    "0000012222100000",
+    "0000001111000000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  shroom = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000011111100000",
+    "0001222222221000",
+    "0012332222332100",
+    "0123332223332100",
+    "1222222222222210",
+    "1222222222222210",
+    "0122222222222100",
+    "0011112222111100",
+    "0000012222100000",
+    "0000012222100000",
+    "0000112222110000",
+    "0001222222210000",
+    "0001111111110000",
+    "0000000000000000",
+  },
+  boss = {
+    "0000000000000000",
+    "0000111111110000",
+    "0011222222221100",
+    "0122333333332210",
+    "1223444444443221",
+    "1234455555444321",
+    "1234556666554321",
+    "1234567777654321",
+    "1234567777654321",
+    "1234556666554321",
+    "1234455555444321",
+    "1223444444443221",
+    "0122333333332210",
+    "0011222222221100",
+    "0000111111110000",
+    "0000000000000000",
+  },
+  npc = {
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000012332100000",
+    "0000012222100000",
+    "0000112222110000",
+    "0001222222210000",
+    "0001222222210000",
+    "0001222222210000",
+    "0000112222110000",
+    "0000011001100000",
+    "0000011001100000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  fire = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000000100000000",
+    "0000001210000000",
+    "0000012321000000",
+    "0000123332100000",
+    "0001233433210000",
+    "0012334443321000",
+    "0012344444321000",
+    "0012334443321000",
+    "0001233333210000",
+    "0000123332100000",
+    "0000111111100000",
+    "0001100000110000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  stairs = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0001111111110000",
+    "0001222222210000",
+    "0001111111110000",
+    "0000122222210000",
+    "0000111111110000",
+    "0000012222210000",
+    "0000011111110000",
+    "0000001222210000",
+    "0000001111110000",
+    "0000000122210000",
+    "0000000111110000",
+    "0000000011110000",
+    "0000000000000000",
+  },
+  meat = {
+    "00000000",
+    "00111100",
+    "01222210",
+    "12233221",
+    "12333321",
+    "01222210",
+    "00111100",
+    "00000000",
+  },
+  wing = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "12233221",
+    "01222210",
+    "00111100",
+    "00000000",
+  },
+  cap = {
+    "00000000",
+    "00111100",
+    "01222210",
+    "12333321",
+    "12333321",
+    "01222210",
+    "00111100",
+    "00000000",
+  },
+  goo = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "01233210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  tile_wall = {
+    "11111111",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "11111111",
+  },
+  tile_floor = {
+    "22222222",
+    "22222222",
+    "22322222",
+    "22222232",
+    "22222222",
+    "23222222",
+    "22222222",
+    "22222222",
+  },
+}
+
+GAME = {}
+WORLD = {}
+
+local function clamp(v, a, b)
+  if v < a then return a end
+  if v > b then return b end
+  return v
+end
+
+local function sign(v)
+  if v < 0 then return -1 end
+  if v > 0 then return 1 end
+  return 0
+end
+
+local function aabb(ax, ay, aw, ah, bx, by, bw, bh)
+  return ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by
+end
+
+local function dist(ax, ay, bx, by)
+  local dx, dy = ax - bx, ay - by
+  return math.sqrt(dx * dx + dy * dy)
+end
+
+local function text_w(s, scale)
+  return #s * 6 * (scale or 1)
+end
+
+local function center_text(s, y, col, scale)
+  print(s, math.floor((CFG.sw - text_w(s, scale)) / 2), y, col, scale)
+end
+
+function clear_tile(id, vram)
+  local addr = vram + id * 32
+  for i = 0, 31 do poke(addr + i, 0) end
+end
+
+function write_pixel(id, x, y, color, vram)
+  local addr = vram + id * 32 + y * 4 + math.floor(x / 2)
+  local b = peek(addr)
+  if x % 2 == 0 then
+    poke(addr, (b - b % 16) + color * 16)
+  else
+    poke(addr, (b - b % 16) + color)
+  end
+end
+
+function load_art(art, base_id, vram)
+  local sw, sh = #art[1], #art
+  for ty = 0, math.floor((sh - 1) / 8) do
+    for tx = 0, math.floor((sw - 1) / 8) do
+      clear_tile(base_id + tx + ty * 16, vram)
+    end
+  end
+  for y = 1, sh do
+    local row = art[y]
+    for x = 1, sw do
+      local c = row:sub(x, x)
+      if c ~= "0" and c ~= "." then
+        local id = base_id + math.floor((x - 1) / 8) + math.floor((y - 1) / 8) * 16
+        write_pixel(id, (x - 1) % 8, (y - 1) % 8, tonumber(c, 16), vram)
+      end
+    end
+  end
+end
+
+function load_sprites()
+  load_art(ART.player, SPR.player, 0x4000)
+  load_art(ART.slime, SPR.slime, 0x4000)
+  load_art(ART.bat, SPR.bat, 0x4000)
+  load_art(ART.shroom, SPR.shroom, 0x4000)
+  load_art(ART.boss, SPR.boss, 0x4000)
+  load_art(ART.npc, SPR.npc, 0x4000)
+  load_art(ART.fire, SPR.fire, 0x4000)
+  load_art(ART.stairs, SPR.stairs, 0x4000)
+  load_art(ART.meat, SPR.meat, 0x4000)
+  load_art(ART.wing, SPR.wing, 0x4000)
+  load_art(ART.cap, SPR.cap, 0x4000)
+  load_art(ART.goo, SPR.goo, 0x4000)
+  load_art(ART.tile_wall, TILE.wall, 0x4000)
+  load_art(ART.tile_floor, TILE.floor, 0x4000)
+end
+
+local function solid(tx, ty)
+  if tx < 0 or ty < 0 or tx >= CFG.gw or ty >= CFG.gh then return true end
+  return mget(tx, ty) == TILE.wall
+end
+
+local function solid_px(x, y)
+  return solid(math.floor(x / 8), math.floor(y / 8))
+end
+
+local function body_move(b, dx, dy)
+  b.x = b.x + dx
+  if solid_px(b.x, b.y) or solid_px(b.x + b.w - 1, b.y) or solid_px(b.x, b.y + b.h - 1) or solid_px(b.x + b.w - 1, b.y + b.h - 1) then
+    b.x = b.x - dx
+  end
+  b.y = b.y + dy
+  if solid_px(b.x, b.y) or solid_px(b.x + b.w - 1, b.y) or solid_px(b.x, b.y + b.h - 1) or solid_px(b.x + b.w - 1, b.y + b.h - 1) then
+    b.y = b.y - dy
+  end
+end
+
+local function add_fx(x, y, col, n)
+  for i = 1, n do
+    WORLD.fx[#WORLD.fx + 1] = {
+      x = x, y = y,
+      vx = math.random(-12, 12) / 10,
+      vy = math.random(-12, 12) / 10,
+      t = math.random(12, 26), col = col,
+    }
+  end
+end
+
+local function msg(s)
+  GAME.msg = s
+  GAME.msg_t = 120
+end
+
+local function part_count(kind)
+  return WORLD.player.parts[kind] or 0
+end
+
+local function can_cook(r)
+  for k, v in pairs(r.need) do
+    if part_count(k) < v then return false end
+  end
+  return true
+end
+
+local function add_part(kind)
+  local p = WORLD.player
+  p.parts[kind] = (p.parts[kind] or 0) + 1
+end
+
+local function eat_raw()
+  local p = WORLD.player
+  local kinds = { "meat", "wing", "cap", "goo" }
+  for i = 1, #kinds do
+    local k = kinds[i]
+    if part_count(k) > 0 then
+      p.parts[k] = p.parts[k] - 1
+      local d = PARTS[k]
+      p.hunger = clamp(p.hunger + d.hunger, 0, CFG.hunger_max)
+      p.poison_t = CFG.poison_t
+      p.poison_tick = 60
+      msg("RAW " .. d.name .. " TASTES AWFUL")
+      sfx(SFX.eat)
+      return
+    end
+  end
+  msg("NOTHING TO EAT")
+end
+
+local function eat_meal()
+  local p = WORLD.player
+  if #p.meals <= 0 then
+    eat_raw()
+    return
+  end
+  local meal = table.remove(p.meals, 1)
+  p.hunger = clamp(p.hunger + meal.hunger, 0, CFG.hunger_max)
+  p.buff = meal.buff
+  p.buff_t = CFG.buff_t
+  msg(meal.name .. " RESTORES YOU")
+  sfx(SFX.eat)
+end
+
+local function cook_selected()
+  local p = WORLD.player
+  local r = RECIPES[GAME.cook_sel]
+  if not can_cook(r) then
+    msg("MISSING INGREDIENTS")
+    return
+  end
+  for k, v in pairs(r.need) do
+    p.parts[k] = p.parts[k] - v
+  end
+  p.meals[#p.meals + 1] = { name = r.name, hunger = r.hunger, buff = r.buff }
+  GAME.meals_made = (GAME.meals_made or 0) + 1
+  msg(r.name .. " COOKED")
+  sfx(SFX.cook)
+end
+
+local function near(obj, range)
+  local p = WORLD.player
+  return dist(p.x + p.w / 2, p.y + p.h / 2, obj.x, obj.y) < (range or 20)
+end
+
+local function hurt_player(n)
+  local p = WORLD.player
+  if GAME.state ~= "play" or p.invuln > 0 then return end
+  if p.buff == "DEFENSE" then n = math.max(0, n - 1) end
+  p.hp = p.hp - n
+  p.invuln = CFG.invuln
+  GAME.shake = 6
+  sfx(SFX.hurt)
+  if p.hp <= 0 then
+    p.hp = 0
+    GAME.state = "lose"
+    GAME.end_t = 0
+  end
+end
+
+local function spawn_enemy(kind, x, y)
+  local base = {
+    kind = kind, x = x, y = y, w = 12, h = 12,
+    hp = 2, speed = 0.35, atk = 1, drop = "meat",
+    shoot_cd = 120, t = math.random(0, 60),
+  }
+  if kind == "slime" then
+    base.hp, base.speed, base.drop = 3, 0.32, "goo"
+  elseif kind == "bat" then
+    base.w, base.h, base.hp, base.speed, base.drop = 12, 8, 2, 0.65, "wing"
+  elseif kind == "shroom" then
+    base.w, base.h, base.hp, base.speed, base.drop = 12, 12, 4, 0.22, "cap"
+    base.shoot_cd = 110
+  elseif kind == "boss" then
+    base.w, base.h, base.hp, base.speed, base.drop = 28, 28, 24, 0.18, "meat"
+    base.shoot_cd = 85
+    base.boss = true
+  end
+  WORLD.enemies[#WORLD.enemies + 1] = base
+end
+
+local function random_floor_in(r)
+  local x = math.random(r.x + 1, r.x + r.w - 2)
+  local y = math.random(r.y + 1, r.y + r.h - 2)
+  return x * 8, y * 8
+end
+
+local function build_floor()
+  for y = 0, CFG.gh - 1 do
+    for x = 0, CFG.gw - 1 do mset(x, y, TILE.wall) end
+  end
+  local rooms = {}
+  local tries = 0
+  while #rooms < 4 and tries < 120 do
+    local w = math.random(6, 9)
+    local h = math.random(4, 6)
+    local x = math.random(2, CFG.gw - w - 2)
+    local y = math.random(2, CFG.gh - h - 2)
+    local ok = true
+    for i = 1, #rooms do
+      local r = rooms[i]
+      if x < r.x + r.w + 1 and x + w + 1 > r.x and y < r.y + r.h + 1 and y + h + 1 > r.y then
+        ok = false
+      end
+    end
+    if ok then rooms[#rooms + 1] = { x = x, y = y, w = w, h = h } end
+    tries = tries + 1
+  end
+  while #rooms < 4 do
+    local w, h = 6, 4
+    local x = 2 + (#rooms % 4) * 7
+    local y = 2 + math.floor(#rooms / 4) * 5
+    rooms[#rooms + 1] = { x = x, y = y, w = w, h = h }
+  end
+  for i = 1, #rooms do
+    local r = rooms[i]
+    for y = r.y, r.y + r.h - 1 do
+      for x = r.x, r.x + r.w - 1 do mset(x, y, TILE.floor) end
+    end
+  end
+  local function cx(r) return math.floor(r.x + r.w / 2) end
+  local function cy(r) return math.floor(r.y + r.h / 2) end
+  for i = 1, #rooms - 1 do
+    local a, b = rooms[i], rooms[i + 1]
+    local ax, ay, bx, by = cx(a), cy(a), cx(b), cy(b)
+    if math.random(0, 1) == 0 then
+      for x = math.min(ax, bx), math.max(ax, bx) do mset(x, ay, TILE.floor) end
+      for y = math.min(ay, by), math.max(ay, by) do mset(bx, y, TILE.floor) end
+    else
+      for y = math.min(ay, by), math.max(ay, by) do mset(ax, y, TILE.floor) end
+      for x = math.min(ax, bx), math.max(ax, bx) do mset(x, by, TILE.floor) end
+    end
+  end
+  local p = WORLD.player
+  p.x = cx(rooms[1]) * 8 - p.w / 2
+  p.y = cy(rooms[1]) * 8 - p.h / 2
+  p.vx, p.vy = 0, 0
+  WORLD.fire = { x = cx(rooms[1]) * 8 + 14, y = cy(rooms[1]) * 8 - 8 }
+  WORLD.npc = { x = cx(rooms[1]) * 8 - 28, y = cy(rooms[1]) * 8 - 8, fed = false }
+  WORLD.stairs = nil
+  if GAME.floor < CFG.floors then
+    WORLD.stairs = { x = cx(rooms[4]) * 8, y = cy(rooms[4]) * 8 - 8 }
+  end
+  WORLD.enemies = {}
+  WORLD.drops = {}
+  WORLD.shots = {}
+  WORLD.fx = {}
+  local s = WORLD.season
+  for i = 2, #rooms do
+    local count = 1 + math.random(0, 2)
+    if i == #rooms then count = count + 1 end
+    for j = 1, count do
+      local roll = math.random(1, 6)
+      local kind = "slime"
+      if roll <= s.slime then kind = "slime"
+      elseif roll <= s.slime + s.bat then kind = "bat"
+      else kind = "shroom" end
+      local x, y = random_floor_in(rooms[i])
+      spawn_enemy(kind, x, y)
+    end
+  end
+  if GAME.floor == CFG.floors then
+    spawn_enemy("boss", cx(rooms[4]) * 8 - 14, cy(rooms[4]) * 8 - 14)
+    WORLD.stairs = nil
+  end
+  GAME.menu = false
+  GAME.floor_msg_t = 120
+  GAME.floor_msg = "FLOOR " .. GAME.floor .. " - " .. s.name
+end
+
+function reset_game()
+  math.randomseed(7319)
+  GAME.state = CFG.start_title and "title" or "play"
+  GAME.t = 0
+  GAME.floor = 1
+  GAME.season = SEASONS[math.random(1, #SEASONS)]
+  WORLD.season = GAME.season
+  GAME.msg = ""
+  GAME.msg_t = 0
+  GAME.shake = 0
+  GAME.cook_sel = 1
+  GAME.menu = false
+  GAME.meals_made = 0
+  GAME.end_t = 0
+  GAME.floor_msg = ""
+  GAME.floor_msg_t = 0
+  WORLD.player = {
+    x = 32, y = 32, w = 12, h = 14, face = 1,
+    hp = CFG.hp, max_hp = CFG.hp, hunger = CFG.hunger_max,
+    parts = { meat = 0, wing = 0, cap = 0, goo = 0 },
+    meals = {}, buff = "", buff_t = 0,
+    attack_t = 0, attack_cd = 0, invuln = 0,
+    poison_t = 0, poison_tick = 0, starve_t = 0, anim = 0,
+  }
+  WORLD.enemies = {}
+  WORLD.drops = {}
+  WORLD.shots = {}
+  WORLD.fx = {}
+  WORLD.fire = nil
+  WORLD.npc = nil
+  WORLD.stairs = nil
+  build_floor()
+end
+
+local function update_fx()
+  for i = #WORLD.fx, 1, -1 do
+    local f = WORLD.fx[i]
+    f.x = f.x + f.vx
+    f.y = f.y + f.vy
+    f.vy = f.vy + 0.04
+    f.t = f.t - 1
+    if f.t <= 0 then table.remove(WORLD.fx, i) end
+  end
+end
+
+local function update_player()
+  local p = WORLD.player
+  local dx, dy = 0, 0
+  local sp = CFG.speed + (p.buff == "SPEED" and 0.4 or 0)
+  if btn(INPUT.left) then dx = -sp; p.face = -1 end
+  if btn(INPUT.right) then dx = sp; p.face = 1 end
+  if btn(INPUT.up) then dy = -sp end
+  if btn(INPUT.down) then dy = sp end
+  if dx ~= 0 and dy ~= 0 then dx, dy = dx * 0.7071, dy * 0.7071 end
+  body_move(p, dx, dy)
+  if dx ~= 0 or dy ~= 0 then p.anim = p.anim + 1 else p.anim = 0 end
+  if p.attack_cd > 0 then p.attack_cd = p.attack_cd - 1 end
+  if p.attack_t > 0 then p.attack_t = p.attack_t - 1 end
+  if p.invuln > 0 then p.invuln = p.invuln - 1 end
+  if btnp(INPUT.attack) and p.attack_cd <= 0 then
+    p.attack_cd = CFG.attack_cd
+    p.attack_t = CFG.attack_t
+    sfx(SFX.hit)
+  end
+  if p.attack_t == CFG.attack_t - 1 then
+    local ax = p.face > 0 and p.x + p.w or p.x - CFG.attack_reach
+    local ay = p.y + 1
+    for i = #WORLD.enemies, 1, -1 do
+      local e = WORLD.enemies[i]
+      if aabb(ax, ay, CFG.attack_reach, 12, e.x, e.y, e.w, e.h) then
+        local dmg = 1 + (p.buff == "POWER" and 1 or 0)
+        e.hp = e.hp - dmg
+        add_fx(e.x + e.w / 2, e.y + e.h / 2, 8, 5)
+        if e.hp <= 0 then
+          WORLD.drops[#WORLD.drops + 1] = {
+            x = e.x + e.w / 2, y = e.y + e.h / 2,
+            kind = e.drop, t = 900, bob = math.random(0, 6),
+          }
+          add_fx(e.x + e.w / 2, e.y + e.h / 2, 3, 10)
+          table.remove(WORLD.enemies, i)
+          sfx(SFX.drop)
+          if e.boss then
+            GAME.state = "win"
+            GAME.end_t = 0
+            sfx(SFX.win)
+          end
+        end
+      end
+    end
+  end
+  p.hunger = p.hunger - CFG.hunger_rate * WORLD.season.hunger
+  if p.hunger <= 0 then
+    p.hunger = 0
+    p.starve_t = p.starve_t + 1
+    if p.starve_t >= 90 then
+      p.starve_t = 0
+      hurt_player(1)
+    end
+  else
+    p.starve_t = 0
+  end
+  if p.poison_t > 0 then
+    p.poison_t = p.poison_t - 1
+    p.poison_tick = p.poison_tick - 1
+    if p.poison_tick <= 0 then
+      p.poison_tick = 60
+      hurt_player(1)
+    end
+  end
+  if p.buff_t > 0 then
+    p.buff_t = p.buff_t - 1
+    if p.buff == "REGEN" and p.buff_t % 60 == 0 then
+      p.hp = clamp(p.hp + 1, 0, p.max_hp)
+    end
+    if p.buff_t <= 0 then p.buff = "" end
+  end
+  if btnp(INPUT.eat) then eat_meal() end
+  if btnp(INPUT.use) then
+    if near(WORLD.fire, CFG.fire_range) then
+      GAME.menu = true
+      GAME.cook_sel = 1
+      sfx(SFX.cook)
+    elseif WORLD.npc and not WORLD.npc.fed and near(WORLD.npc, CFG.npc_range) then
+      if #p.meals > 0 then
+        table.remove(p.meals, 1)
+        WORLD.npc.fed = true
+        p.max_hp = p.max_hp + 1
+        p.hp = p.max_hp
+        msg("MIRA: THANK YOU. HAVE ANOTHER HEART.")
+        sfx(SFX.win)
+      else
+        msg("MIRA: COOK SOMETHING FIRST.")
+      end
+    elseif WORLD.stairs and near(WORLD.stairs, CFG.stair_range) then
+      GAME.floor = GAME.floor + 1
+      build_floor()
+    end
+  end
+  for i = #WORLD.drops, 1, -1 do
+    local d = WORLD.drops[i]
+    d.t = d.t - 1
+    if d.t <= 0 then
+      table.remove(WORLD.drops, i)
+    elseif dist(p.x + p.w / 2, p.y + p.h / 2, d.x, d.y) < 12 then
+      add_part(d.kind)
+      msg("GOT " .. PARTS[d.kind].name)
+      sfx(SFX.drop)
+      table.remove(WORLD.drops, i)
+    end
+  end
+end
+
+local function update_enemies()
+  local p = WORLD.player
+  local px, py = p.x + p.w / 2, p.y + p.h / 2
+  for i = #WORLD.enemies, 1, -1 do
+    local e = WORLD.enemies[i]
+    local ex, ey = e.x + e.w / 2, e.y + e.h / 2
+    local d = dist(px, py, ex, ey)
+    if e.boss then
+      local dx, dy = px - ex, py - ey
+      if d > 24 then body_move(e, sign(dx) * e.speed, sign(dy) * e.speed) end
+      e.shoot_cd = e.shoot_cd - 1
+      if e.shoot_cd <= 0 then
+        e.shoot_cd = 90
+        for k = -1, 1 do
+          local len = math.sqrt(dx * dx + dy * dy)
+          if len < 1 then len = 1 end
+          WORLD.shots[#WORLD.shots + 1] = {
+            x = ex, y = ey, vx = dx / len * 1.6, vy = dy / len * 1.6 + k * 0.6,
+            t = 180, col = 2,
+          }
+        end
+      end
+    elseif d < 90 then
+      local dx, dy = px - ex, py - ey
+      if d > 10 then body_move(e, sign(dx) * e.speed, sign(dy) * e.speed) end
+      if e.kind == "shroom" then
+        e.shoot_cd = e.shoot_cd - 1
+        if e.shoot_cd <= 0 and d < 110 then
+          e.shoot_cd = 120
+          local len = math.sqrt(dx * dx + dy * dy)
+          if len < 1 then len = 1 end
+          WORLD.shots[#WORLD.shots + 1] = {
+            x = ex, y = ey, vx = dx / len * 1.2, vy = dy / len * 1.2,
+            t = 150, col = 14,
+          }
+        end
+      end
+    else
+      e.t = e.t - 1
+      if e.t <= 0 then
+        e.t = math.random(40, 100)
+        e.dir = math.random(1, 4)
+      end
+      if e.dir == 1 then body_move(e, -e.speed, 0)
+      elseif e.dir == 2 then body_move(e, e.speed, 0)
+      elseif e.dir == 3 then body_move(e, 0, -e.speed)
+      elseif e.dir == 4 then body_move(e, 0, e.speed) end
+    end
+    if aabb(p.x, p.y, p.w, p.h, e.x, e.y, e.w, e.h) then
+      hurt_player(e.boss and 2 or 1)
+    end
+  end
+  for i = #WORLD.shots, 1, -1 do
+    local s = WORLD.shots[i]
+    s.x = s.x + s.vx
+    s.y = s.y + s.vy
+    s.t = s.t - 1
+    if s.t <= 0 or solid_px(s.x, s.y) then
+      table.remove(WORLD.shots, i)
+    elseif aabb(p.x, p.y, p.w, p.h, s.x - 2, s.y - 2, 4, 4) then
+      hurt_player(1)
+      table.remove(WORLD.shots, i)
+    end
+  end
+end
+
+local function update_menu()
+  if btnp(INPUT.up) then GAME.cook_sel = GAME.cook_sel - 1 end
+  if btnp(INPUT.down) then GAME.cook_sel = GAME.cook_sel + 1 end
+  GAME.cook_sel = ((GAME.cook_sel - 1) % #RECIPES) + 1
+  if btnp(INPUT.use) then cook_selected() end
+  if btnp(INPUT.attack) then GAME.menu = false end
+end
+
+local function draw_actor(spr_id, x, y, flip)
+  spr(spr_id, math.floor(x), math.floor(y), 0, 1, flip, 0, 2, 2)
+end
+
+local function draw_part_icon(kind, x, y)
+  spr(PARTS[kind].spr, x, y, 0, 1, false, 0, 1, 1)
+end
+
+local function draw_hud()
+  rect(0, 116, 240, 20, 0)
+  line(0, 116, 239, 116, 5)
+  local p = WORLD.player
+  for i = 1, p.max_hp do
+    local col = i <= p.hp and 8 or 1
+    rect(4 + (i - 1) * 7, 121, 5, 5, col)
+    rectb(4 + (i - 1) * 7, 121, 5, 5, 0)
+  end
+  print("FOOD", 4, 129, 7)
+  rect(29, 130, 42, 4, 1)
+  rect(29, 130, math.floor(42 * p.hunger / CFG.hunger_max), 4, 9)
+  print("F" .. GAME.floor, 78, 121, 7)
+  print(WORLD.season.name, 78, 129, WORLD.season.col)
+  local x = 124
+  local kinds = { "meat", "wing", "cap", "goo" }
+  for i = 1, #kinds do
+    local k = kinds[i]
+    draw_part_icon(k, x, 120)
+    print("" .. part_count(k), x + 2, 128, 7)
+    x = x + 18
+  end
+  print("MEAL:" .. #p.meals, 196, 121, 7)
+  if p.buff ~= "" then print(p.buff, 196, 129, 10) end
+  if GAME.msg_t > 0 then
+    rect(0, 104, 240, 10, 0)
+    print(GAME.msg, 4, 106, 10)
+  elseif GAME.floor_msg_t > 0 then
+    rect(0, 104, 240, 10, 0)
+    center_text(GAME.floor_msg, 106, 7, 1)
+  end
+end
+
+local function draw_menu()
+  local p = WORLD.player
+  rect(38, 24, 164, 88, 0)
+  rectb(38, 24, 164, 88, 10)
+  center_text("CAMPFIRE COOKING", 30, 10, 1)
+  for i = 1, #RECIPES do
+    local r = RECIPES[i]
+    local y = 42 + (i - 1) * 14
+    local col = i == GAME.cook_sel and 10 or 7
+    if not can_cook(r) then col = 5 end
+    print((i == GAME.cook_sel and "> " or "  ") .. r.name, 46, y, col)
+    local need = ""
+    for k, v in pairs(r.need) do need = need .. k .. ":" .. part_count(k) .. "/" .. v .. " " end
+    print(need, 100, y, col)
+  end
+  print("X COOK   Z CLOSE", 46, 100, 7)
+  local kinds = { "meat", "wing", "cap", "goo" }
+  local x = 46
+  for i = 1, #kinds do
+    draw_part_icon(kinds[i], x, 88)
+    print("" .. part_count(kinds[i]), x + 9, 88, 7)
+    x = x + 28
+  end
+end
+
+local function draw_title()
+  cls(0)
+  for i = 1, 40 do
+    local x = (i * 53) % 240
+    local y = (i * 31) % 90 + 10
+    rect(x, y, 1, 1, 5)
+  end
+  draw_actor(SPR.fire, 104, 78, false)
+  center_text(CFG.title, 18, 9, 2)
+  center_text(CFG.sub, 40, 7, 1)
+  center_text("ARROWS MOVE   Z ATTACK", 58, 7, 1)
+  center_text("X USE / COOK   C EAT", 68, 7, 1)
+  center_text("KILL MONSTERS. COOK PARTS. FEED MIRA.", 86, 5, 1)
+  center_text("PRESS Z TO ENTER", 108, 10, 1)
+  center_text(CFG.by, 124, 5, 1)
+end
+
+local function draw_world()
+  cls(0)
+  map(0, 0, CFG.gw, CFG.gh, 0, 0)
+  for i = 1, #WORLD.drops do
+    local d = WORLD.drops[i]
+    local bob = math.sin((GAME.t + d.bob * 10) / 12) * 2
+    spr(PARTS[d.kind].spr, math.floor(d.x - 4), math.floor(d.y - 4 + bob), 0, 1, false, 0, 1, 1)
+  end
+  if WORLD.fire then
+    local pulse = math.sin(GAME.t / 8) * 1
+    spr(SPR.fire, math.floor(WORLD.fire.x - 8), math.floor(WORLD.fire.y - 8 + pulse), 0, 1, false, 0, 2, 2)
+  end
+  if WORLD.npc then
+    draw_actor(SPR.npc, WORLD.npc.x - 8, WORLD.npc.y - 8, false)
+    if not WORLD.npc.fed then print("!", math.floor(WORLD.npc.x - 1), math.floor(WORLD.npc.y - 18), 10) end
+  end
+  if WORLD.stairs then
+    spr(SPR.stairs, math.floor(WORLD.stairs.x - 8), math.floor(WORLD.stairs.y - 8), 0, 1, false, 0, 2, 2)
+  end
+  for i = 1, #WORLD.enemies do
+    local e = WORLD.enemies[i]
+    local id = SPR.slime
+    if e.kind == "bat" then id = SPR.bat
+    elseif e.kind == "shroom" then id = SPR.shroom
+    elseif e.kind == "boss" then id = SPR.boss end
+    if e.boss then
+      spr(id, math.floor(e.x - 2), math.floor(e.y - 2), 0, 2, false, 0, 2, 2)
+    else
+      draw_actor(id, e.x - 2, e.y - 2, e.x > WORLD.player.x)
+    end
+  end
+  for i = 1, #WORLD.shots do
+    local s = WORLD.shots[i]
+    circ(math.floor(s.x), math.floor(s.y), 2, s.col)
+    circb(math.floor(s.x), math.floor(s.y), 2, 0)
+  end
+  local p = WORLD.player
+  local blink = p.invuln > 0 and math.floor(GAME.t / 4) % 2 == 0
+  if not blink then
+    draw_actor(SPR.player, p.x - 2, p.y - 2, p.face < 0)
+  end
+  if p.attack_t > 0 then
+    local ax = p.face > 0 and p.x + p.w or p.x - 12
+    rect(ax, p.y + 3, 12, 8, 7)
+    rectb(ax, p.y + 3, 12, 8, 10)
+  end
+  for i = 1, #WORLD.fx do
+    local f = WORLD.fx[i]
+    rect(math.floor(f.x), math.floor(f.y), 1, 1, f.col)
+  end
+  draw_hud()
+  if GAME.menu then draw_menu() end
+  if GAME.shake > 0 then GAME.shake = GAME.shake - 1 end
+end
+
+function update_title()
+  if btnp(INPUT.attack) or btnp(INPUT.use) then
+    reset_game()
+    GAME.state = "play"
+  end
+end
+
+function update_play()
+  if GAME.menu then
+    update_menu()
+  else
+    update_player()
+    update_enemies()
+  end
+  update_fx()
+  if GAME.msg_t > 0 then GAME.msg_t = GAME.msg_t - 1 end
+  if GAME.floor_msg_t > 0 then GAME.floor_msg_t = GAME.floor_msg_t - 1 end
+end
+
+local function draw_end(win)
+  cls(0)
+  for i = 1, 60 do
+    rect((i * 47) % 240, (i * 29) % 136, 1, 1, win and 11 or 8)
+  end
+  center_text(win and "FEAST COMPLETE" or "THE DUNGEON EATS WELL", 34, win and 10 or 8, 2)
+  center_text("FLOOR " .. GAME.floor .. "   SEASON " .. WORLD.season.name, 58, 7, 1)
+  center_text("MEALS COOKED: " .. GAME.meals_made, 70, 9, 1)
+  center_text("PRESS Z TO COOK AGAIN", 98, 10, 1)
+end
+
+function TIC()
+  GAME.t = GAME.t + 1
+  if GAME.state == "title" then
+    update_title()
+    draw_title()
+  elseif GAME.state == "play" then
+    update_play()
+    draw_world()
+  elseif GAME.state == "win" then
+    GAME.end_t = GAME.end_t + 1
+    if btnp(INPUT.attack) then reset_game() end
+    draw_end(true)
+  elseif GAME.state == "lose" then
+    GAME.end_t = GAME.end_t + 1
+    if btnp(INPUT.attack) then reset_game() end
+    draw_end(false)
+  end
+end
+
+load_sprites()
+reset_game()

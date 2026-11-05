@@ -1,0 +1,581 @@
+CFG = {
+  title = "SIEGE 1800", sub = "HOLD THE LINE", by = "YAZDAN ALI KHAN",
+  sw = 240, sh = 136, wall_x = 64, wall_max = 100, morale_max = 100,
+  start_title = true, waves = 10,
+}
+
+INPUT = { up = 0, down = 1, left = 2, right = 3, fire = 4, cycle = 5, start = 6, repair = 7 }
+
+BUILD_TYPES = {
+  { name = "RIFLE", wood = 3, men = 1, rate = 18, damage = 1, col = 7 },
+  { name = "CANNON", wood = 5, men = 2, rate = 70, damage = 4, col = 10, powder = 1 },
+}
+
+ENEMY_TYPES = {
+  inf = { name = "INFANTRY", hp = 3, speed = 0.42, damage = 4, col = 2, w = 5, h = 8 },
+  sap = { name = "SAPPER", hp = 5, speed = 0.30, damage = 9, col = 5, w = 6, h = 8 },
+  cav = { name = "CAVALRY", hp = 4, speed = 0.78, damage = 5, col = 12, w = 8, h = 7 },
+  art = { name = "ARTILLERY", hp = 6, speed = 0.26, damage = 8, col = 4, w = 9, h = 6, stand = 152 },
+  gen = { name = "GENERAL", hp = 25, speed = 0.24, damage = 13, col = 14, w = 9, h = 10, stand = 128 },
+}
+
+WAVES = {
+  { "inf", "inf", "inf", "inf" },
+  { "inf", "inf", "inf", "sap", "sap" },
+  { "inf", "inf", "cav", "cav", "sap" },
+  { "inf", "inf", "inf", "sap", "art" },
+  { "cav", "cav", "inf", "inf", "sap", "sap" },
+  { "inf", "inf", "art", "art", "sap" },
+  { "cav", "cav", "cav", "inf", "sap", "sap" },
+  { "inf", "inf", "inf", "art", "art", "sap" },
+  { "cav", "cav", "inf", "sap", "sap", "art", "gen" },
+  { "inf", "inf", "cav", "cav", "art", "art", "sap", "sap", "gen", "gen" },
+}
+
+GAME = {}
+WORLD = {}
+
+local function clamp(v, a, b)
+  if v < a then return a end
+  if v > b then return b end
+  return v
+end
+
+local function center_text(s, y, col, scale)
+  print(s, math.floor((CFG.sw - #s * 6 * (scale or 1)) / 2), y, col, scale)
+end
+
+local function msg(s)
+  GAME.msg = s
+  GAME.msg_t = 150
+end
+
+local function spawn_fx(x, y, col, n)
+  for i = 1, (n or 4) do
+    WORLD.fx[#WORLD.fx + 1] = {
+      x = x, y = y,
+      vx = (math.random() - 0.5) * 2.2,
+      vy = (math.random() - 0.5) * 2.2,
+      life = 12 + math.random(14), col = col,
+    }
+  end
+end
+
+local function update_fx()
+  for i = #WORLD.fx, 1, -1 do
+    local f = WORLD.fx[i]
+    f.x = f.x + f.vx
+    f.y = f.y + f.vy
+    f.vx = f.vx * 0.95
+    f.vy = f.vy * 0.95
+    f.life = f.life - 1
+    if f.life <= 0 then table.remove(WORLD.fx, i) end
+  end
+end
+
+local function draw_fx()
+  for i = 1, #WORLD.fx do
+    local f = WORLD.fx[i]
+    rect(math.floor(f.x), math.floor(f.y), 1, 1, f.col)
+  end
+end
+
+local function add_enemy(kind)
+  local d = ENEMY_TYPES[kind]
+  local lane = math.random(3)
+  local y = 22 + (lane - 1) * 32 + math.random(8)
+  WORLD.enemies[#WORLD.enemies + 1] = {
+    kind = kind, x = 246 + math.random(20), y = y, w = d.w, h = d.h,
+    hp = d.hp, max_hp = d.hp, speed = d.speed, damage = d.damage,
+    col = d.col, cool = 30 + math.random(40), hurt = 0, stand = d.stand,
+  }
+end
+
+local function start_wave()
+  if GAME.phase ~= "day" then return end
+  if GAME.wave >= CFG.waves then return end
+  GAME.wave = GAME.wave + 1
+  GAME.phase = "battle"
+  GAME.reticle_x = 180
+  GAME.reticle_y = 68
+  GAME.rally_cd = 0
+  GAME.field_cd = 0
+  WORLD.enemies = {}
+  WORLD.projectiles = {}
+  WORLD.tracers = {}
+  WORLD.fx = {}
+  if WORLD.food >= 2 then
+    WORLD.food = WORLD.food - 2
+  else
+    WORLD.food = 0
+    WORLD.morale = math.max(0, WORLD.morale - 12)
+    msg("NO FOOD. THE MEN GRUMBLE.")
+  end
+  local w = WAVES[GAME.wave]
+  for i = 1, #w do add_enemy(w[i]) end
+  msg("WAVE " .. GAME.wave .. ": " .. #w .. " ATTACKERS")
+end
+
+local function finish_wave()
+  GAME.phase = "day"
+  WORLD.enemies = {}
+  WORLD.projectiles = {}
+  if GAME.wave >= CFG.waves then
+    GAME.state = "win"
+    GAME.reason = "THE FORT STANDS"
+    return
+  end
+  WORLD.wood = WORLD.wood + 4
+  WORLD.powder = WORLD.powder + 3
+  WORLD.food = WORLD.food + 2
+  WORLD.men = WORLD.men + 1
+  WORLD.morale = math.min(CFG.morale_max, WORLD.morale + 6)
+  msg("WAVE " .. GAME.wave .. " HELD. RESUPPLY.")
+end
+
+local function damage_wall(n, x, y)
+  WORLD.wall = WORLD.wall - n
+  WORLD.morale = math.max(0, WORLD.morale - math.floor(n * 0.4))
+  GAME.shake = 8
+  spawn_fx(x, y, 10, 8)
+  if WORLD.wall <= 0 then
+    WORLD.wall = 0
+    GAME.state = "lose"
+    GAME.reason = "THE WALL FALLS"
+  elseif WORLD.morale <= 0 then
+    GAME.state = "lose"
+    GAME.reason = "THE GARRISON MUTINIES"
+  end
+end
+
+local function hurt_enemy(e, n, x, y)
+  e.hp = e.hp - n
+  e.hurt = 6
+  spawn_fx(x or e.x, y or e.y, 4, 4)
+  if e.hp <= 0 then
+    spawn_fx(e.x + e.w / 2, e.y + e.h / 2, e.col, 9)
+    if math.random() < 0.35 then WORLD.powder = WORLD.powder + 1 end
+    if math.random() < 0.25 then WORLD.wood = WORLD.wood + 1 end
+    return true
+  end
+  return false
+end
+
+local function target_enemy()
+  local best, bx = nil, 999
+  for i = 1, #WORLD.enemies do
+    local e = WORLD.enemies[i]
+    if e.x > CFG.wall_x + 4 and e.x < bx then best, bx = i, e.x end
+  end
+  return best
+end
+
+local function update_defenses()
+  for i = 1, 3 do
+    local s = WORLD.slots[i]
+    s.cool = math.max(0, s.cool - 1)
+    if s.kind > 0 and s.cool <= 0 then
+      local ti = target_enemy()
+      if ti then
+        local e = WORLD.enemies[ti]
+        local bt = BUILD_TYPES[s.kind]
+        if bt.powder and WORLD.powder < bt.powder then
+          s.cool = 20
+        else
+          if bt.powder then WORLD.powder = WORLD.powder - bt.powder end
+          s.cool = bt.rate
+          local sx, sy = CFG.wall_x + 3, 24 + (i - 1) * 32 + 12
+          WORLD.tracers[#WORLD.tracers + 1] = {
+            x1 = sx, y1 = sy, x2 = e.x + e.w / 2, y2 = e.y + e.h / 2,
+            life = 5, col = bt.col,
+          }
+          if hurt_enemy(e, bt.damage, e.x + e.w / 2, e.y + e.h / 2) then
+            table.remove(WORLD.enemies, ti)
+          end
+        end
+      end
+    end
+  end
+end
+
+local function update_enemies()
+  for i = #WORLD.enemies, 1, -1 do
+    local e = WORLD.enemies[i]
+    e.hurt = math.max(0, e.hurt - 1)
+    e.cool = e.cool - 1
+    local stop = e.stand or (CFG.wall_x + 12)
+    if e.x > stop then
+      e.x = e.x - e.speed
+    elseif e.kind == "art" or e.kind == "gen" then
+      if e.cool <= 0 then
+        e.cool = 110
+        WORLD.projectiles[#WORLD.projectiles + 1] = {
+          x = e.x, y = e.y + e.h / 2, vx = -2.2, vy = 0,
+          life = 140, damage = e.damage, friendly = false, col = 4,
+        }
+      end
+    elseif e.cool <= 0 then
+      e.cool = 55
+      damage_wall(e.damage, CFG.wall_x + 4, e.y + e.h / 2)
+      spawn_fx(CFG.wall_x + 4, e.y + e.h / 2, 10, 5)
+    end
+    if e.x < -20 then table.remove(WORLD.enemies, i) end
+  end
+end
+
+local function update_projectiles()
+  for i = #WORLD.projectiles, 1, -1 do
+    local b = WORLD.projectiles[i]
+    b.x = b.x + b.vx
+    b.y = b.y + b.vy
+    b.life = b.life - 1
+    local hit = false
+    if b.friendly then
+      for j = #WORLD.enemies, 1, -1 do
+        local e = WORLD.enemies[j]
+        if b.x >= e.x and b.x <= e.x + e.w and b.y >= e.y and b.y <= e.y + e.h then
+          if hurt_enemy(e, b.damage, b.x, b.y) then table.remove(WORLD.enemies, j) end
+          hit = true
+          break
+        end
+      end
+    else
+      if b.x <= CFG.wall_x + 8 then
+        damage_wall(b.damage, CFG.wall_x + 4, b.y)
+        hit = true
+      end
+    end
+    if hit or b.life <= 0 or b.x < -10 or b.x > 250 then table.remove(WORLD.projectiles, i) end
+  end
+end
+
+local function update_tracers()
+  for i = #WORLD.tracers, 1, -1 do
+    local t = WORLD.tracers[i]
+    t.life = t.life - 1
+    if t.life <= 0 then table.remove(WORLD.tracers, i) end
+  end
+end
+
+local function try_repair()
+  if WORLD.wood < 3 then
+    msg("NEED 3 WOOD TO REPAIR")
+    return
+  end
+  if WORLD.wall >= CFG.wall_max then
+    msg("THE WALL IS SOUND")
+    return
+  end
+  WORLD.wood = WORLD.wood - 3
+  WORLD.wall = math.min(CFG.wall_max, WORLD.wall + 15)
+  spawn_fx(CFG.wall_x + 4, 68, 10, 8)
+  msg("WALL REPAIRED")
+end
+
+local function place_slot()
+  local s = WORLD.slots[GAME.cursor]
+  if s.kind > 0 then
+    msg("SLOT OCCUPIED. X TO CYCLE BUILD.")
+    return
+  end
+  local bt = BUILD_TYPES[GAME.build]
+  if WORLD.wood < bt.wood or WORLD.men < bt.men then
+    msg("NOT ENOUGH WOOD OR MEN")
+    return
+  end
+  WORLD.wood = WORLD.wood - bt.wood
+  WORLD.men = WORLD.men - bt.men
+  s.kind = GAME.build
+  s.cool = 0
+  msg(bt.name .. " BUILT")
+end
+
+local function update_day()
+  if btnp(INPUT.up) then GAME.cursor = math.max(1, GAME.cursor - 1) end
+  if btnp(INPUT.down) then GAME.cursor = math.min(3, GAME.cursor + 1) end
+  if btnp(INPUT.cycle) then GAME.build = (GAME.build % #BUILD_TYPES) + 1; msg(BUILD_TYPES[GAME.build].name) end
+  if btnp(INPUT.fire) then place_slot() end
+  if btnp(INPUT.repair) then try_repair() end
+  if btnp(INPUT.start) then start_wave() end
+end
+
+local function update_battle()
+  if btn(INPUT.left) then GAME.reticle_x = math.max(78, GAME.reticle_x - 2.2) end
+  if btn(INPUT.right) then GAME.reticle_x = math.min(232, GAME.reticle_x + 2.2) end
+  if btn(INPUT.up) then GAME.reticle_y = math.max(22, GAME.reticle_y - 2.2) end
+  if btn(INPUT.down) then GAME.reticle_y = math.min(112, GAME.reticle_y + 2.2) end
+  GAME.field_cd = math.max(0, GAME.field_cd - 1)
+  GAME.rally_cd = math.max(0, GAME.rally_cd - 1)
+  if btnp(INPUT.fire) and GAME.field_cd <= 0 then
+    if WORLD.powder >= 2 then
+      WORLD.powder = WORLD.powder - 2
+      GAME.field_cd = 45
+      local sx, sy = CFG.wall_x + 6, 68
+      local dx, dy = GAME.reticle_x - sx, GAME.reticle_y - sy
+      local l = math.max(1, math.sqrt(dx * dx + dy * dy))
+      WORLD.projectiles[#WORLD.projectiles + 1] = {
+        x = sx, y = sy, vx = dx / l * 4.0, vy = dy / l * 4.0,
+        life = 80, damage = 5, friendly = true, col = 10,
+      }
+      spawn_fx(sx, sy, 10, 5)
+      GAME.shake = 4
+    else
+      msg("NOT ENOUGH POWDER")
+    end
+  end
+  if btnp(INPUT.cycle) and GAME.rally_cd <= 0 then
+    WORLD.morale = math.min(CFG.morale_max, WORLD.morale + 8)
+    GAME.rally_cd = 300
+    msg("RALLY THE MEN")
+  end
+  if btnp(INPUT.repair) then try_repair() end
+  update_defenses()
+  update_enemies()
+  update_projectiles()
+  update_tracers()
+  update_fx()
+  if #WORLD.enemies == 0 and GAME.state == "play" then finish_wave() end
+end
+
+local function draw_sky()
+  rect(0, 18, 240, 100, 8)
+  rect(0, 18, 240, 30, 1)
+  rect(0, 48, 240, 20, 8)
+  for i = 1, 9 do
+    local x = (i * 53 + GAME.t / 20) % 250
+    local y = 24 + (i * 17) % 54
+    rect(math.floor(x), y, 2, 1, 15)
+  end
+end
+
+local function draw_fort()
+  rect(0, 20, 62, 98, 10)
+  rect(0, 20, 62, 6, 15)
+  rect(0, 108, 62, 10, 5)
+  for y = 28, 100, 8 do
+    for x = 4, 56, 8 do
+      rect(x, y, 7, 7, 4)
+      rect(x + 1, y + 1, 5, 5, 10)
+    end
+  end
+  rect(20, 56, 20, 32, 0)
+  rect(23, 60, 14, 24, 8)
+  line(30, 20, 30, 8, 5)
+  rect(30, 8, 12, 7, 2)
+  rect(30, 8, 12, 2, 14)
+  print("FORT", 12, 98, 7)
+end
+
+local function draw_wall()
+  local h = math.max(0, WORLD.wall) / CFG.wall_max
+  rect(CFG.wall_x, 20, 8, 98, 5)
+  for y = 20, 116, 6 do
+    rect(CFG.wall_x, y, 8, 5, (y / 6) % 2 == 0 and 10 or 5)
+    rect(CFG.wall_x + 1, y + 1, 6, 3, (y / 6) % 2 == 0 and 15 or 10)
+  end
+  if h < 0.75 then
+    line(CFG.wall_x + 1, 40, CFG.wall_x + 7, 56, 0)
+    line(CFG.wall_x + 2, 74, CFG.wall_x + 6, 92, 0)
+  end
+  if h < 0.4 then
+    line(CFG.wall_x + 1, 28, CFG.wall_x + 6, 44, 0)
+    line(CFG.wall_x + 2, 90, CFG.wall_x + 7, 108, 0)
+  end
+  for i = 1, 3 do
+    local s = WORLD.slots[i]
+    local y = 24 + (i - 1) * 32 + 8
+    rect(CFG.wall_x - 1, y, 10, 8, 0)
+    if s.kind == 1 then
+      rect(CFG.wall_x - 4, y + 2, 8, 3, 7)
+      line(CFG.wall_x + 2, y + 3, CFG.wall_x + 10, y + 3, 15)
+    elseif s.kind == 2 then
+      rect(CFG.wall_x - 3, y + 2, 9, 4, 10)
+      circ(CFG.wall_x + 5, y + 4, 3, 4)
+      line(CFG.wall_x + 5, y + 4, CFG.wall_x + 12, y + 4, 15)
+    end
+    if GAME.phase == "day" and GAME.cursor == i then
+      rectb(CFG.wall_x - 5, y - 2, 14, 12, 14)
+    end
+  end
+end
+
+local function draw_enemy(e)
+  local col = e.hurt > 0 and 7 or e.col
+  if e.kind == "cav" then
+    rect(e.x, e.y + 2, 7, 4, col)
+    rect(e.x + 5, e.y, 3, 3, col)
+    line(e.x + 1, e.y + 6, e.x + 2, e.y + 9, 15)
+    line(e.x + 5, e.y + 6, e.x + 6, e.y + 9, 15)
+  elseif e.kind == "art" then
+    rect(e.x, e.y + 2, 8, 4, col)
+    circ(e.x + 3, e.y + 5, 2, 15)
+    line(e.x - 3, e.y + 3, e.x + 2, e.y + 3, 15)
+  elseif e.kind == "gen" then
+    rect(e.x, e.y, 8, 10, col)
+    rect(e.x + 1, e.y - 3, 6, 3, 15)
+    line(e.x + 8, e.y + 2, e.x + 12, e.y - 2, 14)
+  else
+    rect(e.x, e.y, e.w, e.h, col)
+    rect(e.x + 1, e.y - 2, 3, 3, 15)
+    if e.kind == "sap" then rect(e.x - 2, e.y + 3, 3, 5, 4) end
+    line(e.x + 2, e.y + e.h, e.x + 1, e.y + e.h + 3, 15)
+  end
+  if e.hp < e.max_hp then
+    rect(e.x, e.y - 5, e.w, 1, 0)
+    rect(e.x, e.y - 5, math.floor(e.w * e.hp / e.max_hp), 1, 2)
+  end
+end
+
+local function draw_battle()
+  draw_sky()
+  draw_fort()
+  for i = 1, #WORLD.enemies do draw_enemy(WORLD.enemies[i]) end
+  draw_wall()
+  for i = 1, #WORLD.projectiles do
+    local b = WORLD.projectiles[i]
+    rect(math.floor(b.x), math.floor(b.y), 2, 2, b.col)
+  end
+  for i = 1, #WORLD.tracers do
+    local t = WORLD.tracers[i]
+    line(math.floor(t.x1), math.floor(t.y1), math.floor(t.x2), math.floor(t.y2), t.col)
+  end
+  draw_fx()
+  local rx, ry = math.floor(GAME.reticle_x), math.floor(GAME.reticle_y)
+  circb(rx, ry, 5, 14)
+  line(rx - 8, ry, rx - 3, ry, 14)
+  line(rx + 3, ry, rx + 8, ry, 14)
+  line(rx, ry - 8, rx, ry - 3, 14)
+  line(rx, ry + 3, rx, ry + 8, 14)
+end
+
+local function draw_day()
+  draw_sky()
+  draw_fort()
+  draw_wall()
+  draw_fx()
+  local bt = BUILD_TYPES[GAME.build]
+  rect(74, 24, 156, 18, 0)
+  print("BUILD: " .. bt.name, 78, 27, bt.col)
+  print("WOOD " .. bt.wood .. "  MEN " .. bt.men, 78, 35, 7)
+  rect(74, 46, 156, 2, 5)
+  print("UP/DOWN SLOT   X CYCLE   Z BUILD", 78, 52, 7)
+  print("S REPAIR   A START WAVE", 78, 62, 7)
+  print("WAVE " .. (GAME.wave + 1) .. " OF " .. CFG.waves, 78, 76, 14)
+end
+
+local function draw_hud()
+  rect(0, 0, 240, 18, 0)
+  line(0, 18, 239, 18, 5)
+  print("WALL", 3, 3, 7)
+  rect(29, 4, 44, 5, 1)
+  rect(29, 4, math.floor(44 * WORLD.wall / CFG.wall_max), 5, 10)
+  print("MORALE", 78, 3, 7)
+  rect(114, 4, 36, 5, 1)
+  rect(114, 4, math.floor(36 * WORLD.morale / CFG.morale_max), 5, 11)
+  print("WOOD " .. WORLD.wood, 155, 3, 7)
+  print("POW " .. WORLD.powder, 187, 3, 7)
+  print("MEN " .. WORLD.men, 216, 3, 7)
+  print("FOOD " .. WORLD.food, 3, 11, 7)
+  print(GAME.phase == "day" and "DAY" or "BATTLE", 40, 11, GAME.phase == "day" and 10 or 2)
+  print("WAVE " .. GAME.wave .. "/" .. CFG.waves, 76, 11, 5)
+  print("MEN " .. WORLD.men .. "  RALLY " .. (GAME.rally_cd > 0 and "..." or "READY"), 120, 11, 5)
+  if GAME.msg_t > 0 then
+    rect(0, 118, 240, 18, 0)
+    line(0, 118, 239, 118, 5)
+    print(GAME.msg, 4, 124, 7)
+  end
+end
+
+local function draw_game()
+  cls(0)
+  if GAME.phase == "day" then draw_day() else draw_battle() end
+  draw_hud()
+end
+
+local function draw_title()
+  cls(0)
+  rect(0, 0, 240, 136, 1)
+  for i = 1, 40 do
+    local x = (i * 47) % 240
+    local y = 20 + (i * 31) % 100
+    rect(x, y, 1, 1, i % 3 == 0 and 10 or 5)
+  end
+  rect(0, 104, 240, 32, 5)
+  center_text(CFG.title, 14, 10, 2)
+  center_text(CFG.sub, 36, 14, 1)
+  center_text("10 WAVES. ONE WALL. NO RETREAT.", 50, 7, 1)
+  center_text("BUILD DEFENSES BY DAY. HOLD BY NIGHT.", 62, 7, 1)
+  center_text("Z BUILD/FIRE   X CYCLE/RALLY", 78, 15, 1)
+  center_text("A START WAVE   S REPAIR", 88, 15, 1)
+  center_text("PRESS Z TO BEGIN", 110, 10, 1)
+  center_text(CFG.by, 128, 15, 1)
+end
+
+local function draw_end(win)
+  cls(0)
+  rect(0, 0, 240, 136, win and 10 or 1)
+  for i = 1, 30 do
+    rect((i * 41) % 240, (i * 27) % 136, 2, 2, win and 15 or 4)
+  end
+  center_text(win and "THE FORT STANDS" or "THE LINE BREAKS", 34, win and 15 or 7, 2)
+  center_text(GAME.reason, 58, win and 10 or 15, 1)
+  center_text("WAVES HELD: " .. GAME.wave, 72, 15, 1)
+  center_text("PRESS Z TO BEGIN AGAIN", 96, 10, 1)
+end
+
+function reset_game()
+  math.randomseed(1800)
+  GAME.state = CFG.start_title and "title" or "play"
+  GAME.phase = "day"
+  GAME.wave = 0
+  GAME.cursor = 1
+  GAME.build = 1
+  GAME.msg = ""
+  GAME.msg_t = 0
+  GAME.reason = ""
+  GAME.shake = 0
+  GAME.t = 0
+  GAME.reticle_x = 180
+  GAME.reticle_y = 68
+  GAME.field_cd = 0
+  GAME.rally_cd = 0
+  WORLD.wall = CFG.wall_max
+  WORLD.morale = CFG.morale_max
+  WORLD.wood = 20
+  WORLD.powder = 20
+  WORLD.men = 12
+  WORLD.food = 15
+  WORLD.slots = {
+    { kind = 0, cool = 0 },
+    { kind = 0, cool = 0 },
+    { kind = 0, cool = 0 },
+  }
+  WORLD.enemies = {}
+  WORLD.projectiles = {}
+  WORLD.tracers = {}
+  WORLD.fx = {}
+  msg("BUILD YOUR DEFENSES")
+end
+
+function TIC()
+  GAME.t = GAME.t + 1
+  if GAME.msg_t > 0 then GAME.msg_t = GAME.msg_t - 1 end
+  if GAME.state == "title" then
+    if btnp(INPUT.fire) or btnp(INPUT.start) then
+      reset_game()
+      GAME.state = "play"
+    end
+    draw_title()
+  elseif GAME.state == "play" then
+    if GAME.phase == "day" then update_day() else update_battle() end
+    draw_game()
+  elseif GAME.state == "lose" or GAME.state == "win" then
+    if btnp(INPUT.fire) then
+      reset_game()
+      GAME.state = "play"
+    end
+    draw_end(GAME.state == "win")
+  end
+end
+
+reset_game()

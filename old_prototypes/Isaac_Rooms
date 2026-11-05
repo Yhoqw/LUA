@@ -1,0 +1,1032 @@
+CFG = {
+  title = "THE BASEMENT PROTOCOL", sub = "ROOM-BASED ROGUELIKE", by = "YAZDAN ALI KHAN",
+  sw = 240, sh = 136, ts = 8, rw = 30, rh = 17,
+  grid = 7, rooms = 13, floors = 3,
+  speed = 1.25, hp = 6, fire_cd = 13, tear_speed = 3.4,
+  invuln = 60, trans_cd = 16, bomb_fuse = 55, bomb_radius = 28,
+  start_title = true,
+}
+
+INPUT = { up = 0, down = 1, left = 2, right = 3, fire = 4, use = 5 }
+
+TILE = { wall = 1, floor = 2, door = 3, closed = 4 }
+
+SPR = {
+  player = 256, fly = 260, gaper = 264, hopper = 268, boss = 272,
+  tear = 300, shot = 301, heart = 302, damage = 303,
+  speed = 304, tears = 305, bomb = 306, trapdoor = 308,
+}
+
+SFX = { shoot = 0, hit = 1, hurt = 2, clear = 3, item = 4, boom = 5, win = 6 }
+
+ITEMS = {
+  heart = { name = "HEART UP", col = 8, spr = SPR.heart },
+  damage = { name = "DAMAGE UP", col = 2, spr = SPR.damage },
+  speed = { name = "SPEED UP", col = 12, spr = SPR.speed },
+  tears = { name = "TEARS UP", col = 11, spr = SPR.tears },
+  bomb = { name = "BOMBS", col = 5, spr = SPR.bomb },
+}
+
+ART = {
+  player = {
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000012332100000",
+    "0000012222100000",
+    "0000112222110000",
+    "0001222222210000",
+    "0001223332210000",
+    "0001222222210000",
+    "0001222222210000",
+    "0000112222110000",
+    "0000011001100000",
+    "0000011001100000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+  },
+  fly = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000122222210000",
+    "0001223322210000",
+    "0001233322210000",
+    "0001222222210000",
+    "0000122222210000",
+    "0000012222100000",
+    "0000001111000000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  gaper = {
+    "0000000000000000",
+    "0000001111000000",
+    "0000012222100000",
+    "0000012332100000",
+    "0000012222100000",
+    "0000112222110000",
+    "0001222222210000",
+    "0001222222210000",
+    "0001223332210000",
+    "0001222222210000",
+    "0000112222110000",
+    "0000011001100000",
+    "0000011001100000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+  },
+  hopper = {
+    "0000000000000000",
+    "0000000000000000",
+    "0000011111100000",
+    "0000122222210000",
+    "0001222222221000",
+    "0012223322222100",
+    "0012233322222100",
+    "0012222222222100",
+    "0012222222222100",
+    "0001222222221000",
+    "0000122222210000",
+    "0000011111100000",
+    "0000110000110000",
+    "0001100000011000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  boss = {
+    "0000000000000000",
+    "0000111111110000",
+    "0011222222221100",
+    "0122333333332210",
+    "1223444444443221",
+    "1234455555444321",
+    "1234556666554321",
+    "1234567777654321",
+    "1234567777654321",
+    "1234556666554321",
+    "1234455555444321",
+    "1223444444443221",
+    "0122333333332210",
+    "0011222222221100",
+    "0000111111110000",
+    "0000000000000000",
+  },
+  tear = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "01233210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  shot = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01222210",
+    "01222210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  heart = {
+    "00000000",
+    "01100110",
+    "12211221",
+    "12222221",
+    "01222210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  damage = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "01233210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  speed = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "01233210",
+    "00122100",
+    "00011000",
+    "00000000",
+  },
+  tears = {
+    "00000000",
+    "00111100",
+    "01222210",
+    "12233221",
+    "12233221",
+    "01222210",
+    "00111100",
+    "00000000",
+  },
+  bomb = {
+    "00000000",
+    "00011000",
+    "00122100",
+    "01233210",
+    "12333321",
+    "12333321",
+    "01233210",
+    "00011000",
+  },
+  trapdoor = {
+    "0000000000000000",
+    "0000000000000000",
+    "0001111111110000",
+    "0001222222210000",
+    "0001233333210000",
+    "0001233333210000",
+    "0001222222210000",
+    "0001111111110000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+  },
+  tile_wall = {
+    "11111111",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "12222221",
+    "11111111",
+  },
+  tile_floor = {
+    "22222222",
+    "22222222",
+    "22322222",
+    "22222232",
+    "22222222",
+    "23222222",
+    "22222222",
+    "22222222",
+  },
+  tile_door = {
+    "11111111",
+    "13333331",
+    "13333331",
+    "13333331",
+    "13333331",
+    "13333331",
+    "13333331",
+    "11111111",
+  },
+  tile_closed = {
+    "11111111",
+    "14444441",
+    "14444441",
+    "14444441",
+    "14444441",
+    "14444441",
+    "14444441",
+    "11111111",
+  },
+}
+
+GAME = {}
+WORLD = {}
+FLOOR = {}
+
+local function clamp(v, a, b)
+  if v < a then return a end
+  if v > b then return b end
+  return v
+end
+
+local function sign(v)
+  if v < 0 then return -1 end
+  if v > 0 then return 1 end
+  return 0
+end
+
+local function aabb(ax, ay, aw, ah, bx, by, bw, bh)
+  return ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by
+end
+
+local function dist(ax, ay, bx, by)
+  local dx, dy = ax - bx, ay - by
+  return math.sqrt(dx * dx + dy * dy)
+end
+
+local function text_w(s, scale)
+  return #s * 6 * (scale or 1)
+end
+
+local function center_text(s, y, col, scale)
+  print(s, math.floor((CFG.sw - text_w(s, scale)) / 2), y, col, scale)
+end
+
+function clear_tile(id, vram)
+  local addr = vram + id * 32
+  for i = 0, 31 do poke(addr + i, 0) end
+end
+
+function write_pixel(id, x, y, color, vram)
+  local addr = vram + id * 32 + y * 4 + math.floor(x / 2)
+  local b = peek(addr)
+  if x % 2 == 0 then
+    poke(addr, (b - b % 16) + color * 16)
+  else
+    poke(addr, (b - b % 16) + color)
+  end
+end
+
+function load_art(art, base_id, vram)
+  local sw, sh = #art[1], #art
+  for ty = 0, math.floor((sh - 1) / 8) do
+    for tx = 0, math.floor((sw - 1) / 8) do
+      clear_tile(base_id + tx + ty * 16, vram)
+    end
+  end
+  for y = 1, sh do
+    local row = art[y]
+    for x = 1, sw do
+      local c = row:sub(x, x)
+      if c ~= "0" and c ~= "." then
+        local id = base_id + math.floor((x - 1) / 8) + math.floor((y - 1) / 8) * 16
+        write_pixel(id, (x - 1) % 8, (y - 1) % 8, tonumber(c, 16), vram)
+      end
+    end
+  end
+end
+
+function load_sprites()
+  load_art(ART.player, SPR.player, 0x4000)
+  load_art(ART.fly, SPR.fly, 0x4000)
+  load_art(ART.gaper, SPR.gaper, 0x4000)
+  load_art(ART.hopper, SPR.hopper, 0x4000)
+  load_art(ART.boss, SPR.boss, 0x4000)
+  load_art(ART.tear, SPR.tear, 0x4000)
+  load_art(ART.shot, SPR.shot, 0x4000)
+  load_art(ART.heart, SPR.heart, 0x4000)
+  load_art(ART.damage, SPR.damage, 0x4000)
+  load_art(ART.speed, SPR.speed, 0x4000)
+  load_art(ART.tears, SPR.tears, 0x4000)
+  load_art(ART.bomb, SPR.bomb, 0x4000)
+  load_art(ART.trapdoor, SPR.trapdoor, 0x4000)
+  load_art(ART.tile_wall, TILE.wall, 0x4000)
+  load_art(ART.tile_floor, TILE.floor, 0x4000)
+  load_art(ART.tile_door, TILE.door, 0x4000)
+  load_art(ART.tile_closed, TILE.closed, 0x4000)
+end
+
+local function solid_tile(tx, ty)
+  if tx < 0 or ty < 0 or tx >= CFG.rw or ty >= CFG.rh then return true end
+  local t = mget(tx, ty)
+  return t == TILE.wall or t == TILE.closed
+end
+
+local function solid_px(x, y)
+  return solid_tile(math.floor(x / 8), math.floor(y / 8))
+end
+
+local function body_move(b, dx, dy)
+  b.x = b.x + dx
+  if solid_px(b.x, b.y) or solid_px(b.x + b.w - 1, b.y) or solid_px(b.x, b.y + b.h - 1) or solid_px(b.x + b.w - 1, b.y + b.h - 1) then
+    b.x = b.x - dx
+  end
+  b.y = b.y + dy
+  if solid_px(b.x, b.y) or solid_px(b.x + b.w - 1, b.y) or solid_px(b.x, b.y + b.h - 1) or solid_px(b.x + b.w - 1, b.y + b.h - 1) then
+    b.y = b.y - dy
+  end
+end
+
+local function msg(s)
+  GAME.msg = s
+  GAME.msg_t = 110
+end
+
+local function key_of(gx, gy)
+  return gx .. "," .. gy
+end
+
+local function room_at(gx, gy)
+  return FLOOR.grid[key_of(gx, gy)]
+end
+
+local function add_fx(x, y, col, n)
+  for i = 1, n do
+    WORLD.fx[#WORLD.fx + 1] = {
+      x = x, y = y, vx = math.random(-14, 14) / 10,
+      vy = math.random(-14, 14) / 10, t = math.random(12, 28), col = col,
+    }
+  end
+end
+
+local function make_enemy(kind, x, y)
+  local e = { kind = kind, x = x, y = y, w = 12, h = 12, hp = 2, speed = 0.5, shoot_cd = 80, t = math.random(0, 50), flash = 0 }
+  if kind == "fly" then
+    e.hp, e.speed = 2, 0.7
+  elseif kind == "gaper" then
+    e.hp, e.speed = 3, 0.45
+  elseif kind == "hopper" then
+    e.hp, e.speed = 2, 0.9
+  elseif kind == "boss" then
+    e.w, e.h, e.hp, e.speed = 28, 28, 22 + GAME.floor * 9, 0.28
+    e.boss = true
+    e.shoot_cd = 70
+  end
+  return e
+end
+
+local function blocked_by_obstacle(r, tx, ty)
+  for i = 1, #r.obstacles do
+    local o = r.obstacles[i]
+    if tx >= o.x and tx < o.x + o.w and ty >= o.y and ty < o.y + o.h then return true end
+  end
+  return false
+end
+
+local function spawn_enemy(r, kind, tx, ty)
+  r.enemies[#r.enemies + 1] = make_enemy(kind, tx * 8, ty * 8)
+end
+
+local function fill_room_enemies(r)
+  local count = 2 + GAME.floor + math.random(0, 2)
+  if count > 6 then count = 6 end
+  local spots = {
+    { 6, 4 }, { 22, 4 }, { 6, 12 }, { 22, 12 },
+    { 14, 4 }, { 14, 12 }, { 9, 8 }, { 20, 8 },
+  }
+  for i = 1, count do
+    local s = spots[math.random(1, #spots)]
+    local tx, ty = s[1], s[2]
+    if not blocked_by_obstacle(r, tx, ty) then
+      local roll = math.random(1, 10)
+      local kind = "fly"
+      if roll <= 4 then kind = "fly"
+      elseif roll <= 7 then kind = "gaper"
+      else kind = "hopper" end
+      if GAME.floor >= 2 and math.random(1, 3) == 1 then kind = "gaper" end
+      spawn_enemy(r, kind, tx, ty)
+    end
+  end
+end
+
+local function ensure_room(r)
+  if not r.init then
+    r.init = true
+    if r.type == "normal" then
+      fill_room_enemies(r)
+    elseif r.type == "boss" then
+      spawn_enemy(r, "boss", 14, 7)
+    elseif r.type == "item" then
+      local keys = { "heart", "damage", "speed", "tears", "bomb" }
+      r.item = keys[math.random(1, #keys)]
+    end
+    if #r.enemies == 0 then r.cleared = true end
+  end
+  r.visited = true
+end
+
+local function open_doors(r)
+  if r ~= GAME.room then return end
+  local sides = {
+    { "n", 0, -1, 14, 0, 15, 0 },
+    { "s", 0, 1, 14, 16, 15, 16 },
+    { "w", -1, 0, 0, 8, 0, 9 },
+    { "e", 1, 0, 29, 8, 29, 9 },
+  }
+  for i = 1, #sides do
+    local s = sides[i]
+    if room_at(r.gx + s[2], r.gy + s[3]) then
+      mset(s[4], s[5], TILE.door)
+      mset(s[6], s[7], TILE.door)
+    end
+  end
+end
+
+local function build_room_map(r)
+  for y = 0, CFG.rh - 1 do
+    for x = 0, CFG.rw - 1 do mset(x, y, TILE.wall) end
+  end
+  for y = 1, CFG.rh - 2 do
+    for x = 1, CFG.rw - 2 do mset(x, y, TILE.floor) end
+  end
+  for i = 1, #r.obstacles do
+    local o = r.obstacles[i]
+    for y = o.y, o.y + o.h - 1 do
+      for x = o.x, o.x + o.w - 1 do
+        if x > 0 and x < CFG.rw - 1 and y > 0 and y < CFG.rh - 1 then mset(x, y, TILE.wall) end
+      end
+    end
+  end
+  local door_tile = r.cleared and TILE.door or TILE.closed
+  local sides = {
+    { "n", 0, -1, 14, 0, 15, 0 },
+    { "s", 0, 1, 14, 16, 15, 16 },
+    { "w", -1, 0, 0, 8, 0, 9 },
+    { "e", 1, 0, 29, 8, 29, 9 },
+  }
+  for i = 1, #sides do
+    local s = sides[i]
+    if room_at(r.gx + s[2], r.gy + s[3]) then
+      mset(s[4], s[5], door_tile)
+      mset(s[6], s[7], door_tile)
+    end
+  end
+end
+
+local function place_player(entry)
+  local p = WORLD.player
+  if entry == "w" then p.x, p.y = 12, 61
+  elseif entry == "e" then p.x, p.y = 216, 61
+  elseif entry == "n" then p.x, p.y = 114, 12
+  elseif entry == "s" then p.x, p.y = 114, 110
+  else p.x, p.y = 114, 61 end
+end
+
+local function load_room(r, entry)
+  ensure_room(r)
+  GAME.room = r
+  GAME.room_key = key_of(r.gx, r.gy)
+  WORLD.enemies = r.enemies
+  WORLD.pickups = r.pickups
+  WORLD.shots = {}
+  WORLD.tears = {}
+  WORLD.bombs = {}
+  WORLD.trapdoor = r.trapdoor
+  build_room_map(r)
+  place_player(entry)
+  GAME.trans_cd = CFG.trans_cd
+end
+
+local function transition(dir)
+  local r = GAME.room
+  local nx, ny = r.gx, r.gy
+  local entry = "center"
+  if dir == "w" then nx, ny, entry = nx - 1, ny, "e"
+  elseif dir == "e" then nx, ny, entry = nx + 1, ny, "w"
+  elseif dir == "n" then nx, ny, entry = nx, ny - 1, "s"
+  elseif dir == "s" then nx, ny, entry = nx, ny + 1, "n" end
+  local nr = room_at(nx, ny)
+  if nr then
+    WORLD.shots = {}
+    load_room(nr, entry)
+  end
+end
+
+local function hurt_player(n)
+  local p = WORLD.player
+  if GAME.state ~= "play" or p.invuln > 0 then return end
+  p.hp = p.hp - n
+  p.invuln = CFG.invuln
+  GAME.shake = 6
+  sfx(SFX.hurt)
+  if p.hp <= 0 then
+    p.hp = 0
+    GAME.state = "lose"
+    GAME.end_t = 0
+  end
+end
+
+local function apply_item(kind)
+  local p = WORLD.player
+  if kind == "heart" then
+    p.max_hp = p.max_hp + 1
+    p.hp = p.max_hp
+  elseif kind == "damage" then
+    p.damage = p.damage + 1
+  elseif kind == "speed" then
+    p.speed = p.speed + 0.18
+  elseif kind == "tears" then
+    p.fire_cd_max = math.max(5, p.fire_cd_max - 3)
+  elseif kind == "bomb" then
+    p.bombs = p.bombs + 2
+  end
+  msg(ITEMS[kind].name)
+  sfx(SFX.item)
+end
+
+local function check_clear(r)
+  if #r.enemies == 0 and not r.cleared then
+    r.cleared = true
+    open_doors(r)
+    if r.type == "boss" then
+      r.trapdoor = true
+      WORLD.trapdoor = true
+      msg("THE FLOOR IS CLEAR. FIND THE TRAPDOOR.")
+      sfx(SFX.win)
+    else
+      if math.random(1, 10) <= 4 then
+        r.pickups[#r.pickups + 1] = { kind = "heart", x = 14 * 8 + 4, y = 8 * 8 + 4 }
+      elseif math.random(1, 10) <= 2 then
+        r.pickups[#r.pickups + 1] = { kind = "bomb", x = 14 * 8 + 4, y = 8 * 8 + 4 }
+      end
+      msg("ROOM CLEARED")
+      sfx(SFX.clear)
+    end
+  end
+end
+
+local function kill_enemy(e)
+  local r = GAME.room
+  for i = #r.enemies, 1, -1 do
+    if r.enemies[i] == e then table.remove(r.enemies, i) end
+  end
+  add_fx(e.x + e.w / 2, e.y + e.h / 2, 8, 8)
+  sfx(SFX.hit)
+  check_clear(r)
+end
+
+local function fire_tear()
+  local p = WORLD.player
+  local dx, dy = 0, 0
+  if p.dir == "left" then dx = -1
+  elseif p.dir == "right" then dx = 1
+  elseif p.dir == "up" then dy = -1
+  else dy = 1 end
+  local ox, oy = p.x + p.w / 2 + dx * 8, p.y + p.h / 2 + dy * 8
+  WORLD.tears[#WORLD.tears + 1] = {
+    x = ox, y = oy, vx = dx * CFG.tear_speed, vy = dy * CFG.tear_speed,
+    t = 70, damage = p.damage,
+  }
+  sfx(SFX.shoot)
+end
+
+local generate_floor
+
+local function update_player()
+  local p = WORLD.player
+  local dx, dy = 0, 0
+  if btn(INPUT.left) then dx = -p.speed; p.dir = "left" end
+  if btn(INPUT.right) then dx = p.speed; p.dir = "right" end
+  if btn(INPUT.up) then dy = -p.speed; p.dir = "up" end
+  if btn(INPUT.down) then dy = p.speed; p.dir = "down" end
+  if dx ~= 0 and dy ~= 0 then dx, dy = dx * 0.7071, dy * 0.7071 end
+  body_move(p, dx, dy)
+  if p.invuln > 0 then p.invuln = p.invuln - 1 end
+  if p.fire_cd > 0 then p.fire_cd = p.fire_cd - 1 end
+  if btn(INPUT.fire) and p.fire_cd <= 0 then
+    p.fire_cd = p.fire_cd_max
+    fire_tear()
+  end
+  if btnp(INPUT.use) then
+    if WORLD.trapdoor and dist(p.x + p.w / 2, p.y + p.h / 2, 14 * 8 + 4, 8 * 8 + 4) < 18 then
+      if GAME.floor >= CFG.floors then
+        GAME.state = "win"
+        GAME.end_t = 0
+        sfx(SFX.win)
+        return
+      else
+        GAME.floor = GAME.floor + 1
+        generate_floor()
+        msg("FLOOR " .. GAME.floor)
+        return
+      end
+    elseif p.bombs > 0 then
+      p.bombs = p.bombs - 1
+      WORLD.bombs[#WORLD.bombs + 1] = { x = p.x + p.w / 2, y = p.y + p.h / 2, t = CFG.bomb_fuse }
+      sfx(SFX.boom)
+    end
+  end
+  local r = GAME.room
+  if r.item and not r.item_taken then
+    if dist(p.x + p.w / 2, p.y + p.h / 2, 14 * 8 + 4, 8 * 8 + 4) < 14 then
+      r.item_taken = true
+      apply_item(r.item)
+    end
+  end
+  for i = #r.pickups, 1, -1 do
+    local k = r.pickups[i]
+    if dist(p.x + p.w / 2, p.y + p.h / 2, k.x, k.y) < 12 then
+      if k.kind == "heart" then
+        p.hp = clamp(p.hp + 2, 0, p.max_hp)
+        msg("HEART")
+      else
+        p.bombs = p.bombs + 1
+        msg("BOMB")
+      end
+      table.remove(r.pickups, i)
+      sfx(SFX.item)
+    end
+  end
+  if GAME.trans_cd > 0 then
+    GAME.trans_cd = GAME.trans_cd - 1
+  elseif GAME.state == "play" then
+    if p.x < 1 and room_at(r.gx - 1, r.gy) then transition("w")
+    elseif p.x + p.w > 239 and room_at(r.gx + 1, r.gy) then transition("e")
+    elseif p.y < 1 and room_at(r.gx, r.gy - 1) then transition("n")
+    elseif p.y + p.h > 135 and room_at(r.gx, r.gy + 1) then transition("s") end
+  end
+end
+
+local function update_tears()
+  local r = GAME.room
+  for i = #WORLD.tears, 1, -1 do
+    local t = WORLD.tears[i]
+    t.x = t.x + t.vx
+    t.y = t.y + t.vy
+    t.t = t.t - 1
+    local hit = false
+    if t.t <= 0 or solid_px(t.x, t.y) then
+      hit = true
+    else
+      for j = #r.enemies, 1, -1 do
+        local e = r.enemies[j]
+        if aabb(t.x - 3, t.y - 3, 6, 6, e.x, e.y, e.w, e.h) then
+          e.hp = e.hp - t.damage
+          e.flash = 6
+          add_fx(t.x, t.y, 12, 3)
+          hit = true
+          if e.hp <= 0 then kill_enemy(e) end
+          break
+        end
+      end
+    end
+    if hit then table.remove(WORLD.tears, i) end
+  end
+end
+
+local function update_enemies()
+  local p = WORLD.player
+  local r = GAME.room
+  local px, py = p.x + p.w / 2, p.y + p.h / 2
+  for i = #r.enemies, 1, -1 do
+    local e = r.enemies[i]
+    if e.flash > 0 then e.flash = e.flash - 1 end
+    local ex, ey = e.x + e.w / 2, e.y + e.h / 2
+    local dx, dy = px - ex, py - ey
+    local d = dist(px, py, ex, ey)
+    if e.kind == "fly" then
+      e.x = e.x + sign(dx) * e.speed
+      e.y = e.y + sign(dy) * e.speed
+      e.x = clamp(e.x, 8, 232 - e.w)
+      e.y = clamp(e.y, 8, 128 - e.h)
+    elseif e.kind == "gaper" then
+      if d < 140 then body_move(e, sign(dx) * e.speed, sign(dy) * e.speed) end
+    elseif e.kind == "hopper" then
+      e.t = e.t - 1
+      if e.t <= 0 then
+        e.t = math.random(28, 50)
+        e.jx, e.jy = sign(dx) * e.speed * 2, sign(dy) * e.speed * 2
+      end
+      if e.jx then
+        body_move(e, e.jx, e.jy)
+        e.jx = e.jx * 0.9
+        e.jy = e.jy * 0.9
+        if math.abs(e.jx) < 0.05 then e.jx = nil; e.jy = nil end
+      end
+    elseif e.boss then
+      if d > 38 then body_move(e, sign(dx) * e.speed, sign(dy) * e.speed) end
+      e.shoot_cd = e.shoot_cd - 1
+      if e.shoot_cd <= 0 then
+        e.shoot_cd = 75
+        local len = math.sqrt(dx * dx + dy * dy)
+        if len < 1 then len = 1 end
+        for k = -1, 1 do
+          WORLD.shots[#WORLD.shots + 1] = {
+            x = ex, y = ey, vx = dx / len * 1.5 + k * 0.7,
+            vy = dy / len * 1.5 + k * 0.7, t = 160, col = 8,
+          }
+        end
+      end
+    end
+    if aabb(p.x, p.y, p.w, p.h, e.x, e.y, e.w, e.h) then hurt_player(1) end
+  end
+  for i = #WORLD.shots, 1, -1 do
+    local s = WORLD.shots[i]
+    s.x = s.x + s.vx
+    s.y = s.y + s.vy
+    s.t = s.t - 1
+    if s.t <= 0 or solid_px(s.x, s.y) then
+      table.remove(WORLD.shots, i)
+    elseif aabb(p.x, p.y, p.w, p.h, s.x - 2, s.y - 2, 4, 4) then
+      hurt_player(1)
+      table.remove(WORLD.shots, i)
+    end
+  end
+end
+
+local function update_bombs()
+  for i = #WORLD.bombs, 1, -1 do
+    local b = WORLD.bombs[i]
+    b.t = b.t - 1
+    if b.t <= 0 then
+      add_fx(b.x, b.y, 10, 18)
+      for j = #GAME.room.enemies, 1, -1 do
+        local e = GAME.room.enemies[j]
+        if dist(b.x, b.y, e.x + e.w / 2, e.y + e.h / 2) < CFG.bomb_radius then
+          e.hp = e.hp - 4
+          e.flash = 8
+          if e.hp <= 0 then kill_enemy(e) end
+        end
+      end
+      sfx(SFX.boom)
+      table.remove(WORLD.bombs, i)
+    end
+  end
+end
+
+local function update_fx()
+  for i = #WORLD.fx, 1, -1 do
+    local f = WORLD.fx[i]
+    f.x = f.x + f.vx
+    f.y = f.y + f.vy
+    f.vy = f.vy + 0.04
+    f.t = f.t - 1
+    if f.t <= 0 then table.remove(WORLD.fx, i) end
+  end
+end
+
+local function draw_actor(id, x, y, flip)
+  spr(id, math.floor(x), math.floor(y), 0, 1, flip, 0, 2, 2)
+end
+
+local function draw_minimap()
+  local x0, y0 = 192, 4
+  for gy = 1, CFG.grid do
+    for gx = 1, CFG.grid do
+      local r = room_at(gx, gy)
+      if r and r.visited then
+        local col = 5
+        if r.type == "boss" then col = 8 end
+        if r.type == "item" then col = 13 end
+        if GAME.room and GAME.room.gx == gx and GAME.room.gy == gy then col = 10 end
+        rect(x0 + (gx - 1) * 5, y0 + (gy - 1) * 5, 4, 4, col)
+      end
+    end
+  end
+end
+
+local function draw_hud()
+  local p = WORLD.player
+  for i = 1, p.max_hp do
+    local col = i <= p.hp and 8 or 1
+    rect(4 + (i - 1) * 7, 5, 5, 5, col)
+    rectb(4 + (i - 1) * 7, 5, 5, 5, 0)
+  end
+  print("DMG " .. p.damage, 4, 14, 7)
+  print("SPD " .. math.floor(p.speed * 10), 44, 14, 7)
+  print("BOMB " .. p.bombs, 84, 14, 7)
+  print("F" .. GAME.floor, 132, 14, 7)
+  draw_minimap()
+  if GAME.msg_t > 0 then
+    rect(0, 124, 240, 10, 0)
+    print(GAME.msg, 4, 126, 10)
+  end
+end
+
+local function draw_title()
+  cls(0)
+  for i = 1, 50 do
+    local x = (i * 43) % 240
+    local y = (i * 29) % 110 + 8
+    rect(x, y, 1, 1, 5)
+  end
+  center_text(CFG.title, 18, 8, 2)
+  center_text(CFG.sub, 40, 7, 1)
+  center_text("ARROWS MOVE   Z SHOOT   X BOMB/TRAPDOOR", 62, 7, 1)
+  center_text("CLEAR ROOMS. FIND THE BOSS. DESCEND.", 80, 5, 1)
+  center_text("PRESS Z TO ENTER", 104, 10, 1)
+  center_text(CFG.by, 124, 5, 1)
+end
+
+local function draw_world()
+  cls(0)
+  map(0, 0, CFG.rw, CFG.rh, 0, 0)
+  local r = GAME.room
+  if r.item and not r.item_taken then
+    local bob = math.sin(GAME.t / 9) * 2
+    rect(14 * 8, 8 * 8 + bob, 8, 8, 0)
+    spr(ITEMS[r.item].spr, 14 * 8, 8 * 8 + bob, 0, 1, false, 0, 1, 1)
+  end
+  if WORLD.trapdoor then
+    spr(SPR.trapdoor, 14 * 8 - 4, 8 * 8 - 4, 0, 1, false, 0, 2, 2)
+  end
+  for i = 1, #r.pickups do
+    local k = r.pickups[i]
+    spr(k.kind == "heart" and SPR.heart or SPR.bomb, math.floor(k.x - 4), math.floor(k.y - 4), 0, 1, false, 0, 1, 1)
+  end
+  for i = 1, #WORLD.bombs do
+    local b = WORLD.bombs[i]
+    local pulse = math.floor(GAME.t / 5) % 2
+    circ(math.floor(b.x), math.floor(b.y), 4 + pulse, 5)
+    circb(math.floor(b.x), math.floor(b.y), 4 + pulse, 0)
+  end
+  for i = 1, #r.enemies do
+    local e = r.enemies[i]
+    local id = SPR.fly
+    if e.kind == "gaper" then id = SPR.gaper
+    elseif e.kind == "hopper" then id = SPR.hopper
+    elseif e.kind == "boss" then id = SPR.boss end
+    if e.boss then
+      spr(id, math.floor(e.x - 2), math.floor(e.y - 2), 0, 2, false, 0, 2, 2)
+    else
+      local blink = e.flash > 0 and math.floor(GAME.t / 2) % 2 == 0
+      if not blink then draw_actor(id, e.x - 2, e.y - 2, e.x > WORLD.player.x) end
+    end
+  end
+  for i = 1, #WORLD.shots do
+    local s = WORLD.shots[i]
+    spr(SPR.shot, math.floor(s.x - 4), math.floor(s.y - 4), 0, 1, false, 0, 1, 1)
+  end
+  for i = 1, #WORLD.tears do
+    local t = WORLD.tears[i]
+    spr(SPR.tear, math.floor(t.x - 4), math.floor(t.y - 4), 0, 1, false, 0, 1, 1)
+  end
+  local p = WORLD.player
+  local blink = p.invuln > 0 and math.floor(GAME.t / 4) % 2 == 0
+  if not blink then draw_actor(SPR.player, p.x - 2, p.y - 2, p.dir == "left") end
+  for i = 1, #WORLD.fx do
+    local f = WORLD.fx[i]
+    rect(math.floor(f.x), math.floor(f.y), 1, 1, f.col)
+  end
+  draw_hud()
+end
+
+function generate_floor()
+  FLOOR.grid = {}
+  FLOOR.list = {}
+  local function add_room(gx, gy, kind)
+    local r = {
+      gx = gx, gy = gy, type = kind or "normal",
+      visited = false, cleared = kind == "start" or kind == "item",
+      enemies = {}, pickups = {}, obstacles = {},
+      init = false, item = nil, item_taken = false, trapdoor = false,
+    }
+    if kind == "start" then r.cleared = true end
+    for i = 1, math.random(2, 5) do
+      local ox = math.random(4, 24)
+      local oy = math.random(3, 12)
+      if ox < 12 or ox > 17 or oy < 6 or oy > 10 then
+        r.obstacles[#r.obstacles + 1] = { x = ox, y = oy, w = 1, h = 1 }
+      end
+    end
+    FLOOR.grid[key_of(gx, gy)] = r
+    FLOOR.list[#FLOOR.list + 1] = r
+  end
+  add_room(4, 4, "start")
+  local dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+  local tries = 0
+  while #FLOOR.list < CFG.rooms and tries < 400 do
+    tries = tries + 1
+    local base = FLOOR.list[math.random(1, #FLOOR.list)]
+    local d = dirs[math.random(1, 4)]
+    local nx, ny = base.gx + d[1], base.gy + d[2]
+    if nx >= 1 and nx <= CFG.grid and ny >= 1 and ny <= CFG.grid and not room_at(nx, ny) then
+      add_room(nx, ny)
+    end
+  end
+  local boss, best = nil, -1
+  for i = 1, #FLOOR.list do
+    local r = FLOOR.list[i]
+    if r.type ~= "start" then
+      local d = math.abs(r.gx - 4) + math.abs(r.gy - 4)
+      if d > best then best, boss = d, r end
+    end
+  end
+  if boss then boss.type = "boss" end
+  local items = 0
+  for i = #FLOOR.list, 1, -1 do
+    local r = FLOOR.list[i]
+    local d = math.abs(r.gx - 4) + math.abs(r.gy - 4)
+    if r.type == "normal" and d >= 2 and items < 2 then
+      r.type = "item"
+      r.cleared = true
+      items = items + 1
+    end
+  end
+  GAME.room = nil
+  load_room(FLOOR.grid["4,4"], "center")
+end
+
+function reset_game()
+  math.randomseed(4417)
+  GAME.state = CFG.start_title and "title" or "play"
+  GAME.t = 0
+  GAME.floor = 1
+  GAME.msg = ""
+  GAME.msg_t = 0
+  GAME.shake = 0
+  GAME.trans_cd = 0
+  GAME.end_t = 0
+  GAME.room = nil
+  GAME.room_key = ""
+  WORLD.player = {
+    x = 114, y = 61, w = 12, h = 14, dir = "down",
+    hp = CFG.hp, max_hp = CFG.hp, damage = 1, speed = CFG.speed,
+    fire_cd = 0, fire_cd_max = CFG.fire_cd, bombs = 1, invuln = 0,
+  }
+  WORLD.tears = {}
+  WORLD.shots = {}
+  WORLD.bombs = {}
+  WORLD.fx = {}
+  WORLD.pickups = {}
+  WORLD.trapdoor = false
+  generate_floor()
+end
+
+function update_title()
+  if btnp(INPUT.fire) or btnp(INPUT.use) then
+    reset_game()
+    GAME.state = "play"
+  end
+end
+
+function update_play()
+  update_player()
+  update_tears()
+  update_enemies()
+  update_bombs()
+  update_fx()
+  if GAME.msg_t > 0 then GAME.msg_t = GAME.msg_t - 1 end
+  if GAME.shake > 0 then GAME.shake = GAME.shake - 1 end
+end
+
+local function draw_end(win)
+  cls(0)
+  for i = 1, 60 do
+    rect((i * 47) % 240, (i * 29) % 136, 1, 1, win and 11 or 8)
+  end
+  center_text(win and "THE BASEMENT BREAKS" or "YOU BECAME A STATUE", 34, win and 10 or 8, 2)
+  center_text("FLOOR " .. GAME.floor .. "   DMG " .. WORLD.player.damage, 58, 7, 1)
+  center_text("PRESS Z TO RUN AGAIN", 98, 10, 1)
+end
+
+function TIC()
+  GAME.t = GAME.t + 1
+  if GAME.state == "title" then
+    update_title()
+    draw_title()
+  elseif GAME.state == "play" then
+    update_play()
+    draw_world()
+  elseif GAME.state == "win" then
+    GAME.end_t = GAME.end_t + 1
+    if btnp(INPUT.fire) then reset_game() end
+    draw_end(true)
+  elseif GAME.state == "lose" then
+    GAME.end_t = GAME.end_t + 1
+    if btnp(INPUT.fire) then reset_game() end
+    draw_end(false)
+  end
+end
+
+load_sprites()
+reset_game()

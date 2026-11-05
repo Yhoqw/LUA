@@ -1,0 +1,872 @@
+CFG = {
+  title = "PROCEDURAL RTS", sub = "ONE MAP. TWO BASES. NO MERCY.", by = "YAZDAN ALI KHAN",
+  sw = 240, sh = 136, map_w = 30, map_h = 13, ts = 8, map_y = 16,
+  start_title = true, unit_cap = 16, gold_start = 10,
+}
+
+INPUT = { up = 0, down = 1, left = 2, right = 3, select = 4, cycle = 5, act = 6 }
+
+UNIT_TYPES = {
+  worker = { name = "WORKER", hp = 10, speed = 0.45, damage = 0, range = 0, cost = 5, time = 90, col = 10, rate = 40 },
+  soldier = { name = "SOLDIER", hp = 20, speed = 0.60, damage = 3, range = 11, cost = 8, time = 110, col = 12, rate = 35 },
+  archer = { name = "ARCHER", hp = 12, speed = 0.50, damage = 2, range = 55, cost = 10, time = 130, col = 14, rate = 45 },
+}
+
+BUILD_TYPES = {
+  base = { name = "BASE", hp = 100, cost = 0, col = 12 },
+  barracks = { name = "BARRACKS", hp = 60, cost = 15, col = 10 },
+  tower = { name = "TOWER", hp = 50, cost = 12, col = 4, range = 65, damage = 2, rate = 45 },
+}
+
+GAME = {}
+WORLD = {}
+
+local function clamp(v, a, b)
+  if v < a then return a end
+  if v > b then return b end
+  return v
+end
+
+local function center_text(s, y, col, scale)
+  print(s, math.floor((CFG.sw - #s * 6 * (scale or 1)) / 2), y, col, scale)
+end
+
+local function msg(s)
+  GAME.msg = s
+  GAME.msg_t = 150
+end
+
+local function key(x, y)
+  return y * 100 + x
+end
+
+local function get_tile(x, y)
+  if x < 1 or y < 1 or x > CFG.map_w or y > CFG.map_h then return "#" end
+  return string.sub(WORLD.tiles[y], x, x)
+end
+
+local function set_tile(x, y, ch)
+  local row = WORLD.tiles[y]
+  WORLD.tiles[y] = string.sub(row, 1, x - 1) .. ch .. string.sub(row, x + 1)
+end
+
+local function passable(x, y)
+  local t = get_tile(x, y)
+  return t ~= "#" and t ~= "T" and t ~= "G"
+end
+
+local function tile_px(tx, ty)
+  return (tx - 1) * CFG.ts + 4, CFG.map_y + (ty - 1) * CFG.ts + 4
+end
+
+local function unit_tile(u)
+  return math.floor(u.x / CFG.ts) + 1, math.floor((u.y - CFG.map_y) / CFG.ts) + 1
+end
+
+local function building_at(x, y)
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.x == x and b.y == y and b.hp > 0 then return b end
+  end
+  return nil
+end
+
+local function building_center(b)
+  return tile_px(b.x, b.y)
+end
+
+local function base_for(owner)
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.kind == "base" and b.owner == owner and b.hp > 0 then return b end
+  end
+  return nil
+end
+
+local function unit_count(owner, combat)
+  local n = 0
+  for i = 1, #WORLD.units do
+    local u = WORLD.units[i]
+    if u.owner == owner and u.hp > 0 then
+      if not combat or u.kind ~= "worker" then n = n + 1 end
+    end
+  end
+  return n
+end
+
+local function worker_count(owner)
+  local n = 0
+  for i = 1, #WORLD.units do
+    local u = WORLD.units[i]
+    if u.owner == owner and u.kind == "worker" and u.hp > 0 then n = n + 1 end
+  end
+  return n
+end
+
+local function add_unit(kind, owner, tx, ty)
+  local d = UNIT_TYPES[kind]
+  local x, y = tile_px(tx, ty)
+  WORLD.units[#WORLD.units + 1] = {
+    kind = kind, owner = owner, x = x, y = y,
+    hp = d.hp, max_hp = d.hp, speed = d.speed,
+    damage = d.damage, range = d.range, rate = d.rate, col = d.col,
+    cool = 0, path = nil, pi = 1, order = nil, target = nil,
+    carry = 0, gather_t = 0, goal_x = nil, goal_y = nil,
+  }
+end
+
+local function add_building(kind, owner, x, y)
+  local d = BUILD_TYPES[kind]
+  WORLD.buildings[#WORLD.buildings + 1] = {
+    kind = kind, owner = owner, x = x, y = y,
+    hp = d.hp, max_hp = d.hp, col = d.col,
+    train_t = 0, train_type = "worker", cool = 0,
+  }
+end
+
+local function gen_map()
+  WORLD.tiles = {}
+  for y = 1, CFG.map_h do
+    local row = ""
+    for x = 1, CFG.map_w do
+      local r = math.random()
+      local ch = "."
+      if r < 0.10 then ch = "#"
+      elseif r < 0.18 then ch = "T" end
+      row = row .. ch
+    end
+    WORLD.tiles[y] = row
+  end
+  for y = 5, 9 do
+    for x = 2, 7 do set_tile(x, y, ".") end
+    for x = 24, 29 do set_tile(x, y, ".") end
+  end
+  WORLD.gold_nodes = {}
+  local spots = { { 8, 4 }, { 9, 9 }, { 6, 11 }, { 10, 6 }, { 22, 4 }, { 21, 9 }, { 24, 11 }, { 20, 6 } }
+  for i = 1, #spots do
+    local x, y = spots[i][1], spots[i][2]
+    set_tile(x, y, "G")
+    WORLD.gold_nodes[#WORLD.gold_nodes + 1] = { x = x, y = y, amount = 100 }
+  end
+end
+
+local function find_path(sx, sy, tx, ty)
+  if not passable(tx, ty) then
+    local dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+    local found = nil
+    for i = 1, 4 do
+      if passable(tx + dirs[i][1], ty + dirs[i][2]) then
+        found = { tx + dirs[i][1], ty + dirs[i][2] }
+        break
+      end
+    end
+    if not found then return nil end
+    tx, ty = found[1], found[2]
+  end
+  local q = { { sx, sy } }
+  local prev = {}
+  prev[key(sx, sy)] = { sx, sy }
+  local head = 1
+  while head <= #q do
+    local x, y = q[head][1], q[head][2]
+    head = head + 1
+    if x == tx and y == ty then break end
+    local dirs = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+    for i = 1, 4 do
+      local nx, ny = x + dirs[i][1], y + dirs[i][2]
+      if passable(nx, ny) and not prev[key(nx, ny)] then
+        prev[key(nx, ny)] = { x, y }
+        q[#q + 1] = { nx, ny }
+      end
+    end
+  end
+  if not prev[key(tx, ty)] then return nil end
+  local path = {}
+  local cx, cy = tx, ty
+  while not (cx == sx and cy == sy) do
+    table.insert(path, 1, { x = cx, y = cy })
+    local p = prev[key(cx, cy)]
+    cx, cy = p[1], p[2]
+  end
+  return path
+end
+
+local function set_path(u, tx, ty)
+  local sx, sy = unit_tile(u)
+  u.path = find_path(sx, sy, tx, ty)
+  u.pi = 1
+  u.goal_x, u.goal_y = tx, ty
+end
+
+local function follow_path(u)
+  if not u.path or u.pi > #u.path then return false end
+  local n = u.path[u.pi]
+  local tx, ty = tile_px(n.x, n.y)
+  local dx, dy = tx - u.x, ty - u.y
+  local d = math.sqrt(dx * dx + dy * dy)
+  if d < 2 then
+    u.pi = u.pi + 1
+  else
+    u.x = u.x + dx / d * u.speed
+    u.y = u.y + dy / d * u.speed
+  end
+  return true
+end
+
+local function nearest_gold(u)
+  local best, bd = nil, 99999
+  for i = 1, #WORLD.gold_nodes do
+    local n = WORLD.gold_nodes[i]
+    if n.amount > 0 then
+      local x, y = tile_px(n.x, n.y)
+      local d = (x - u.x) ^ 2 + (y - u.y) ^ 2
+      if d < bd then best, bd = n, d end
+    end
+  end
+  return best
+end
+
+local function damage_unit(u, n)
+  u.hp = u.hp - n
+  if u.hp <= 0 then u.hp = 0 end
+end
+
+local function damage_building(b, n)
+  b.hp = b.hp - n
+  if b.hp <= 0 then
+    b.hp = 0
+    if b.kind == "base" then
+      if b.owner == "player" then
+        GAME.state = "lose"
+        GAME.reason = "YOUR BASE HAS FALLEN"
+      else
+        GAME.state = "win"
+        GAME.reason = "THE ENEMY BASE IS RUBBLE"
+      end
+    end
+  end
+end
+
+local function target_center(t, kind)
+  if kind == "unit" then return t.x, t.y end
+  return building_center(t)
+end
+
+local function attack(u, t, kind)
+  if not t or t.hp <= 0 then u.target = nil; return end
+  local tx, ty = target_center(t, kind)
+  local dx, dy = tx - u.x, ty - u.y
+  local d = math.sqrt(dx * dx + dy * dy)
+  if d <= u.range then
+    if u.cool <= 0 then
+      u.cool = u.rate
+      if u.kind == "archer" then
+        WORLD.projectiles[#WORLD.projectiles + 1] = {
+          x = u.x, y = u.y, target = t, kind = kind,
+          damage = u.damage, life = 60, owner = u.owner, col = u.col,
+        }
+      else
+        if kind == "unit" then damage_unit(t, u.damage) else damage_building(t, u.damage) end
+      end
+    end
+  else
+    if u.order == "attack" then
+      local gx, gy
+      if kind == "unit" then gx, gy = unit_tile(t) else gx, gy = t.x, t.y end
+      if u.goal_x ~= gx or u.goal_y ~= gy then set_path(u, gx, gy) end
+      follow_path(u)
+    end
+  end
+end
+
+local function acquire_target(u)
+  local best, bd, bkind = nil, 55 * 55, nil
+  for i = 1, #WORLD.units do
+    local e = WORLD.units[i]
+    if e.owner ~= u.owner and e.hp > 0 then
+      local d = (e.x - u.x) ^ 2 + (e.y - u.y) ^ 2
+      if d < bd then best, bd, bkind = e, d, "unit" end
+    end
+  end
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner ~= u.owner and b.hp > 0 then
+      local x, y = building_center(b)
+      local d = (x - u.x) ^ 2 + (y - u.y) ^ 2
+      if d < bd then best, bd, bkind = b, d, "building" end
+    end
+  end
+  if best then
+    u.target, u.target_kind = best, bkind
+    u.order = "attack"
+  end
+end
+
+local function update_worker(u)
+  local base = base_for(u.owner)
+  if not base then return end
+  if u.carry >= 5 then
+    local bx, by = building_center(base)
+    local d = math.sqrt((bx - u.x) ^ 2 + (by - u.y) ^ 2)
+    if d < 10 then
+      if u.owner == "player" then WORLD.gold = WORLD.gold + u.carry else WORLD.ai_gold = WORLD.ai_gold + u.carry end
+      u.carry = 0
+      u.path = nil
+    else
+      if u.goal_x ~= base.x or u.goal_y ~= base.y then set_path(u, base.x, base.y) end
+      follow_path(u)
+    end
+    return
+  end
+  local node = nearest_gold(u)
+  if not node then return end
+  local nx, ny = tile_px(node.x, node.y)
+  local d = math.sqrt((nx - u.x) ^ 2 + (ny - u.y) ^ 2)
+  if d < 10 then
+    u.gather_t = u.gather_t + 1
+    if u.gather_t >= 35 then
+      u.gather_t = 0
+      if node.amount > 0 then
+        node.amount = node.amount - 1
+        u.carry = u.carry + 1
+      end
+      if node.amount <= 0 then set_tile(node.x, node.y, ".") end
+    end
+  else
+    if u.goal_x ~= node.x or u.goal_y ~= node.y then set_path(u, node.x, node.y) end
+    follow_path(u)
+  end
+end
+
+local function update_unit(u)
+  if u.hp <= 0 then return end
+  u.cool = math.max(0, u.cool - 1)
+  if u.kind == "worker" then
+    update_worker(u)
+    return
+  end
+  if u.target and u.target.hp > 0 then
+    attack(u, u.target, u.target_kind)
+  else
+    u.target = nil
+    if u.order == "move" then
+      if not follow_path(u) then u.order = nil end
+    else
+      acquire_target(u)
+      if u.target then attack(u, u.target, u.target_kind) end
+    end
+  end
+end
+
+local function update_projectiles()
+  for i = #WORLD.projectiles, 1, -1 do
+    local b = WORLD.projectiles[i]
+    b.life = b.life - 1
+    if b.target and b.target.hp > 0 then
+      local tx, ty = target_center(b.target, b.kind)
+      local dx, dy = tx - b.x, ty - b.y
+      local d = math.sqrt(dx * dx + dy * dy)
+      if d < 6 then
+        if b.kind == "unit" then damage_unit(b.target, b.damage) else damage_building(b.target, b.damage) end
+        table.remove(WORLD.projectiles, i)
+      else
+        b.x = b.x + dx / d * 3
+        b.y = b.y + dy / d * 3
+      end
+    else
+      table.remove(WORLD.projectiles, i)
+    end
+  end
+end
+
+local function update_buildings()
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.hp > 0 then
+      b.cool = math.max(0, b.cool - 1)
+      if b.train_t > 0 then
+        b.train_t = b.train_t - 1
+        if b.train_t <= 0 then
+          local d = UNIT_TYPES[b.train_type]
+          if b.owner == "player" then
+            if unit_count("player") < CFG.unit_cap then
+              add_unit(b.train_type, "player", b.x, b.y + 1)
+              msg(d.name .. " READY")
+            end
+          else
+            if unit_count("enemy") < CFG.unit_cap then
+              add_unit(b.train_type, "enemy", b.x, b.y + 1)
+            end
+          end
+        end
+      end
+      if b.kind == "tower" then
+        local d = BUILD_TYPES.tower
+        if b.cool <= 0 then
+          local best, bd = nil, d.range * d.range
+          for j = 1, #WORLD.units do
+            local u = WORLD.units[j]
+            if u.owner ~= b.owner and u.hp > 0 then
+              local bx, by = building_center(b)
+              local dd = (u.x - bx) ^ 2 + (u.y - by) ^ 2
+              if dd < bd then best, bd = u, dd end
+            end
+          end
+          if best then
+            b.cool = d.rate
+            WORLD.projectiles[#WORLD.projectiles + 1] = {
+              x = building_center(b), y = select(2, building_center(b)),
+              target = best, kind = "unit", damage = d.damage,
+              life = 50, owner = b.owner, col = 4,
+            }
+          end
+        end
+      end
+    end
+  end
+  for i = #WORLD.buildings, 1, -1 do
+    if WORLD.buildings[i].hp <= 0 then table.remove(WORLD.buildings, i) end
+  end
+end
+
+local function update_ai()
+  local base = base_for("enemy")
+  if not base then return end
+  local barracks = nil
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner == "enemy" and b.kind == "barracks" and b.hp > 0 then barracks = b end
+  end
+  if GAME.t % 240 == 0 and worker_count("enemy") < 4 and WORLD.ai_gold >= 5 then
+    WORLD.ai_gold = WORLD.ai_gold - 5
+    add_unit("worker", "enemy", base.x, base.y + 1)
+  end
+  if barracks and GAME.t % 180 == 0 and WORLD.ai_gold >= 8 and unit_count("enemy") < CFG.unit_cap then
+    local kind = GAME.t % 360 == 0 and "archer" or "soldier"
+    WORLD.ai_gold = WORLD.ai_gold - UNIT_TYPES[kind].cost
+    add_unit(kind, "enemy", barracks.x, barracks.y + 1)
+  end
+  if GAME.t % 300 == 0 then
+    for i = 1, #WORLD.units do
+      local u = WORLD.units[i]
+      if u.owner == "enemy" and u.kind ~= "worker" and u.hp > 0 then
+        u.order = "attack"
+        u.target = base_for("player")
+        u.target_kind = "building"
+      end
+    end
+  end
+end
+
+local function visible_at(tx, ty)
+  if not WORLD.visible[ty] then return false end
+  return WORLD.visible[ty][tx] == true
+end
+
+local function update_vision()
+  WORLD.visible = {}
+  for y = 1, CFG.map_h do
+    WORLD.visible[y] = {}
+    for x = 1, CFG.map_w do WORLD.visible[y][x] = false end
+  end
+  for i = 1, #WORLD.units do
+    local u = WORLD.units[i]
+    if u.owner == "player" and u.hp > 0 then
+      local tx, ty = unit_tile(u)
+      for y = math.max(1, ty - 4), math.min(CFG.map_h, ty + 4) do
+        for x = math.max(1, tx - 4), math.min(CFG.map_w, tx + 4) do
+          if (x - tx) ^ 2 + (y - ty) ^ 2 <= 20 then
+            WORLD.visible[y][x] = true
+            WORLD.seen[y][x] = true
+          end
+        end
+      end
+    end
+  end
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner == "player" and b.hp > 0 then
+      for y = math.max(1, b.y - 5), math.min(CFG.map_h, b.y + 5) do
+        for x = math.max(1, b.x - 5), math.min(CFG.map_w, b.x + 5) do
+          if (x - b.x) ^ 2 + (y - b.y) ^ 2 <= 30 then
+            WORLD.visible[y][x] = true
+            WORLD.seen[y][x] = true
+          end
+        end
+      end
+    end
+  end
+end
+
+local function player_base_hp()
+  local b = base_for("player")
+  return b and b.hp or 0
+end
+
+local function selected_entity()
+  if GAME.sel_kind == "unit" then
+    local u = WORLD.units[GAME.sel_i]
+    if u and u.hp > 0 then return u end
+  elseif GAME.sel_kind == "building" then
+    local b = WORLD.buildings[GAME.sel_i]
+    if b and b.hp > 0 then return b end
+  end
+  return nil
+end
+
+local function select_at_cursor()
+  local cx, cy = GAME.cursor_x, GAME.cursor_y
+  for i = 1, #WORLD.units do
+    local u = WORLD.units[i]
+    if u.owner == "player" and u.hp > 0 then
+      local tx, ty = unit_tile(u)
+      if tx == cx and ty == cy then
+        GAME.sel_kind, GAME.sel_i = "unit", i
+        msg(UNIT_TYPES[u.kind].name .. " SELECTED")
+        return
+      end
+    end
+  end
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner == "player" and b.hp > 0 and b.x == cx and b.y == cy then
+      GAME.sel_kind, GAME.sel_i = "building", i
+      msg(string.upper(b.kind) .. " SELECTED")
+      return
+    end
+  end
+  GAME.sel_kind, GAME.sel_i = nil, nil
+end
+
+local function player_entity_at_cursor()
+  for i = 1, #WORLD.units do
+    local u = WORLD.units[i]
+    if u.owner == "player" and u.hp > 0 then
+      local tx, ty = unit_tile(u)
+      if tx == GAME.cursor_x and ty == GAME.cursor_y then return true end
+    end
+  end
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner == "player" and b.hp > 0 and b.x == GAME.cursor_x and b.y == GAME.cursor_y then return true end
+  end
+  return false
+end
+
+local function command_at_cursor()
+  local sel = selected_entity()
+  if not sel then return end
+  if GAME.sel_kind == "building" then return end
+  local u = sel
+  if u.kind == "worker" then
+    if GAME.build_choice then
+      local bt = GAME.build_choice == 1 and BUILD_TYPES.barracks or BUILD_TYPES.tower
+      local kind = GAME.build_choice == 1 and "barracks" or "tower"
+      if WORLD.gold < bt.cost then msg("NOT ENOUGH GOLD") return end
+      if building_at(GAME.cursor_x, GAME.cursor_y) then msg("TILE OCCUPIED") return end
+      if not passable(GAME.cursor_x, GAME.cursor_y) then msg("CANNOT BUILD THERE") return end
+      local ux, uy = unit_tile(u)
+      if math.abs(ux - GAME.cursor_x) > 3 or math.abs(uy - GAME.cursor_y) > 3 then msg("TOO FAR") return end
+      WORLD.gold = WORLD.gold - bt.cost
+      add_building(kind, "player", GAME.cursor_x, GAME.cursor_y)
+      msg(bt.name .. " BUILT")
+      return
+    end
+  end
+  for i = 1, #WORLD.units do
+    local e = WORLD.units[i]
+    if e.owner ~= "player" and e.hp > 0 then
+      local tx, ty = unit_tile(e)
+      if tx == GAME.cursor_x and ty == GAME.cursor_y then
+        u.order, u.target, u.target_kind = "attack", e, "unit"
+        set_path(u, tx, ty)
+        msg("ATTACK")
+        return
+      end
+    end
+  end
+  for i = 1, #WORLD.buildings do
+    local b = WORLD.buildings[i]
+    if b.owner ~= "player" and b.hp > 0 and b.x == GAME.cursor_x and b.y == GAME.cursor_y then
+      u.order, u.target, u.target_kind = "attack", b, "building"
+      set_path(u, b.x, b.y)
+      msg("ATTACK")
+      return
+    end
+  end
+  u.order, u.target = "move", nil
+  set_path(u, GAME.cursor_x, GAME.cursor_y)
+  msg("MOVE")
+end
+
+local function train_selected()
+  local sel = selected_entity()
+  if not sel or GAME.sel_kind ~= "building" then return end
+  local b = sel
+  if b.kind ~= "base" and b.kind ~= "barracks" then return end
+  if b.train_t > 0 then msg("TRAINING IN PROGRESS") return end
+  local kind = b.kind == "base" and "worker" or (GAME.train_choice == 1 and "soldier" or "archer")
+  local d = UNIT_TYPES[kind]
+  if WORLD.gold < d.cost then msg("NOT ENOUGH GOLD") return end
+  if unit_count("player") >= CFG.unit_cap then msg("UNIT CAP REACHED") return end
+  WORLD.gold = WORLD.gold - d.cost
+  b.train_type = kind
+  b.train_t = d.time
+  msg("TRAINING " .. d.name)
+end
+
+local function update_play()
+  if btnp(INPUT.up) then GAME.cursor_y = math.max(1, GAME.cursor_y - 1) end
+  if btnp(INPUT.down) then GAME.cursor_y = math.min(CFG.map_h, GAME.cursor_y + 1) end
+  if btnp(INPUT.left) then GAME.cursor_x = math.max(1, GAME.cursor_x - 1) end
+  if btnp(INPUT.right) then GAME.cursor_x = math.min(CFG.map_w, GAME.cursor_x + 1) end
+  if btnp(INPUT.select) then
+    if player_entity_at_cursor() then
+      select_at_cursor()
+    else
+      local sel = selected_entity()
+      if sel then command_at_cursor() else select_at_cursor() end
+    end
+  end
+  if btnp(INPUT.cycle) then
+    local sel = selected_entity()
+    if sel and GAME.sel_kind == "unit" and sel.kind == "worker" then
+      GAME.build_choice = (GAME.build_choice or 0) + 1
+      if GAME.build_choice > 2 then GAME.build_choice = nil end
+      msg(GAME.build_choice and (GAME.build_choice == 1 and "BUILD BARRACKS" or "BUILD TOWER") or "BUILD CANCELLED")
+    elseif sel and GAME.sel_kind == "building" and sel.kind == "barracks" then
+      GAME.train_choice = GAME.train_choice == 1 and 2 or 1
+      msg(GAME.train_choice == 1 and "TRAIN SOLDIER" or "TRAIN ARCHER")
+    end
+  end
+  if btnp(INPUT.act) then
+    local sel = selected_entity()
+    if sel and GAME.sel_kind == "building" then
+      train_selected()
+    elseif sel and GAME.sel_kind == "unit" and sel.kind == "worker" and GAME.build_choice then
+      command_at_cursor()
+    end
+  end
+  for i = #WORLD.units, 1, -1 do
+    local u = WORLD.units[i]
+    update_unit(u)
+    if u.hp <= 0 then table.remove(WORLD.units, i) end
+  end
+  update_buildings()
+  update_projectiles()
+  update_ai()
+  update_vision()
+end
+
+local function draw_tile(x, y)
+  local px, py = (x - 1) * CFG.ts, CFG.map_y + (y - 1) * CFG.ts
+  if not WORLD.seen[y][x] then
+    rect(px, py, 8, 8, 0)
+    return
+  end
+  local vis = visible_at(x, y)
+  local ch = get_tile(x, y)
+  if ch == "#" then
+    rect(px, py, 8, 8, vis and 5 or 1)
+    rect(px + 1, py + 1, 6, 6, vis and 10 or 5)
+  elseif ch == "T" then
+    rect(px, py, 8, 8, vis and 3 or 1)
+    circ(px + 3, py + 4, 2, vis and 2 or 5)
+    circ(px + 6, py + 5, 2, vis and 4 or 5)
+  elseif ch == "G" then
+    rect(px, py, 8, 8, vis and 3 or 1)
+    circ(px + 4, py + 4, 3, vis and 10 or 5)
+    circ(px + 4, py + 4, 1, vis and 14 or 5)
+  else
+    rect(px, py, 8, 8, vis and ((x + y) % 2 == 0 and 3 or 11) or 1)
+  end
+end
+
+local function draw_building(b)
+  if b.hp <= 0 then return end
+  local vis = b.owner == "player" or visible_at(b.x, b.y)
+  if not vis then return end
+  local px, py = (b.x - 1) * CFG.ts, CFG.map_y + (b.y - 1) * CFG.ts
+  local col = b.owner == "player" and 12 or 2
+  rect(px + 1, py + 1, 6, 6, col)
+  rectb(px, py, 8, 8, 15)
+  if b.kind == "base" then
+    rect(px + 2, py + 2, 4, 4, 10)
+    line(px + 4, py + 1, px + 4, py - 3, 15)
+    rect(px + 4, py - 3, 3, 2, 14)
+  elseif b.kind == "barracks" then
+    rect(px + 2, py + 3, 4, 3, 5)
+    line(px + 1, py + 2, px + 7, py + 2, 15)
+  else
+    rect(px + 2, py + 2, 4, 5, 4)
+    circ(px + 4, py + 2, 2, 15)
+  end
+  if b.hp < b.max_hp then
+    rect(px, py - 2, 8, 1, 0)
+    rect(px, py - 2, math.floor(8 * b.hp / b.max_hp), 1, 2)
+  end
+  if b.train_t > 0 then rect(px, py + 7, math.floor(8 * b.train_t / UNIT_TYPES[b.train_type].time), 1, 11) end
+end
+
+local function draw_unit(u)
+  if u.hp <= 0 then return end
+  if u.owner == "enemy" then
+    local tx, ty = unit_tile(u)
+    if not visible_at(tx, ty) then return end
+  end
+  local col = u.owner == "player" and u.col or 2
+  if u.kind == "worker" then
+    rect(math.floor(u.x) - 2, math.floor(u.y) - 2, 4, 4, col)
+  elseif u.kind == "archer" then
+    tri(math.floor(u.x), math.floor(u.y) - 4, math.floor(u.x) - 3, math.floor(u.y) + 3, math.floor(u.x) + 3, math.floor(u.y) + 3, col)
+  else
+    circ(math.floor(u.x), math.floor(u.y), 3, col)
+  end
+  rectb(math.floor(u.x) - 3, math.floor(u.y) - 3, 6, 6, 15)
+  if u.hp < u.max_hp then
+    rect(math.floor(u.x) - 4, math.floor(u.y) - 6, 8, 1, 0)
+    rect(math.floor(u.x) - 4, math.floor(u.y) - 6, math.floor(8 * u.hp / u.max_hp), 1, 2)
+  end
+end
+
+local function draw_game()
+  cls(0)
+  for y = 1, CFG.map_h do
+    for x = 1, CFG.map_w do draw_tile(x, y) end
+  end
+  for i = 1, #WORLD.buildings do draw_building(WORLD.buildings[i]) end
+  for i = 1, #WORLD.units do draw_unit(WORLD.units[i]) end
+  for i = 1, #WORLD.projectiles do
+    local b = WORLD.projectiles[i]
+    rect(math.floor(b.x), math.floor(b.y), 2, 2, b.col)
+  end
+  local sel = selected_entity()
+  if sel then
+    if GAME.sel_kind == "unit" then
+      rectb(math.floor(sel.x) - 5, math.floor(sel.y) - 5, 10, 10, 15)
+    else
+      rectb((sel.x - 1) * CFG.ts - 1, CFG.map_y + (sel.y - 1) * CFG.ts - 1, 10, 10, 15)
+    end
+  end
+  local cx, cy = (GAME.cursor_x - 1) * CFG.ts, CFG.map_y + (GAME.cursor_y - 1) * CFG.ts
+  rectb(cx, cy, 8, 8, 14)
+  rect(0, 0, 240, 16, 0)
+  line(0, 16, 239, 16, 5)
+  print("GOLD " .. WORLD.gold, 3, 3, 10)
+  print("UNITS " .. unit_count("player") .. "/" .. CFG.unit_cap, 60, 3, 7)
+  print("BASE " .. player_base_hp(), 130, 3, 11)
+  print("ENEMY " .. (base_for("enemy") and base_for("enemy").hp or 0), 186, 3, 2)
+  rect(0, 120, 240, 16, 0)
+  line(0, 120, 239, 120, 5)
+  if GAME.msg_t > 0 then
+    print(GAME.msg, 3, 126, 7)
+  elseif sel then
+    if GAME.sel_kind == "unit" then
+      print(UNIT_TYPES[sel.kind].name .. " HP " .. sel.hp, 3, 126, 7)
+      if sel.kind == "worker" then
+        print(GAME.build_choice and (GAME.build_choice == 1 and "X: BARRACKS" or "X: TOWER") .. "  A: BUILD" or "X: BUILD MENU", 110, 126, 5)
+      else
+        print("Z: MOVE/ATTACK", 110, 126, 5)
+      end
+    else
+      print(string.upper(sel.kind) .. " HP " .. sel.hp, 3, 126, 7)
+      if sel.kind == "base" then
+        print("A: TRAIN WORKER", 110, 126, 5)
+      elseif sel.kind == "barracks" then
+        print((GAME.train_choice == 1 and "SOLDIER" or "ARCHER") .. "  X CYCLE  A TRAIN", 100, 126, 5)
+      end
+    end
+  else
+    print("Z SELECT   ARROWS CURSOR", 3, 126, 5)
+    print("X CYCLE   A BUILD/TRAIN", 140, 126, 5)
+  end
+end
+
+local function draw_title()
+  cls(0)
+  rect(0, 0, 240, 136, 0)
+  for i = 1, 50 do
+    local x = (i * 43) % 240
+    local y = (i * 29) % 136
+    rect(x, y, 1, 1, i % 4 == 0 and 10 or 5)
+  end
+  center_text(CFG.title, 16, 10, 2)
+  center_text(CFG.sub, 38, 7, 1)
+  center_text("GENERATED MAP. GATHER GOLD. BUILD AN ARMY.", 52, 5, 1)
+  center_text("DESTROY THE ENEMY BASE BEFORE THEY DESTROY YOURS.", 64, 5, 1)
+  center_text("ARROWS CURSOR   Z SELECT/COMMAND", 78, 15, 1)
+  center_text("X CYCLE   A BUILD/TRAIN", 88, 15, 1)
+  center_text("PRESS Z TO DEPLOY", 110, 10, 1)
+  center_text(CFG.by, 128, 5, 1)
+end
+
+local function draw_end(win)
+  cls(0)
+  rect(0, 0, 240, 136, win and 1 or 0)
+  for i = 1, 35 do
+    rect((i * 41) % 240, (i * 29) % 136, 2, 2, win and 10 or 2)
+  end
+  center_text(win and "SKIRMISH WON" or "BASE LOST", 32, win and 10 or 2, 2)
+  center_text(GAME.reason, 58, 7, 1)
+  center_text("PRESS Z TO REGENERATE", 88, 10, 1)
+end
+
+function reset_game()
+  math.randomseed(9001)
+  GAME.state = CFG.start_title and "title" or "play"
+  GAME.t = 0
+  GAME.msg = ""
+  GAME.msg_t = 0
+  GAME.reason = ""
+  GAME.cursor_x, GAME.cursor_y = 15, 7
+  GAME.sel_kind, GAME.sel_i = nil, nil
+  GAME.build_choice, GAME.train_choice = nil, 1
+  WORLD.gold = CFG.gold_start
+  WORLD.ai_gold = CFG.gold_start
+  WORLD.units = {}
+  WORLD.buildings = {}
+  WORLD.projectiles = {}
+  WORLD.seen = {}
+  for y = 1, CFG.map_h do
+    WORLD.seen[y] = {}
+    for x = 1, CFG.map_w do WORLD.seen[y][x] = false end
+  end
+  gen_map()
+  add_building("base", "player", 3, 7)
+  add_building("base", "enemy", 27, 7)
+  add_building("barracks", "enemy", 25, 8)
+  add_building("tower", "enemy", 25, 6)
+  add_unit("worker", "player", 4, 7)
+  add_unit("worker", "player", 5, 7)
+  add_unit("soldier", "player", 4, 8)
+  add_unit("soldier", "player", 5, 8)
+  add_unit("worker", "enemy", 26, 7)
+  add_unit("worker", "enemy", 25, 7)
+  add_unit("soldier", "enemy", 26, 8)
+  add_unit("soldier", "enemy", 25, 8)
+  update_vision()
+  msg("SELECT A UNIT WITH Z")
+end
+
+function TIC()
+  GAME.t = GAME.t + 1
+  if GAME.msg_t > 0 then GAME.msg_t = GAME.msg_t - 1 end
+  if GAME.state == "title" then
+    if btnp(INPUT.select) or btnp(INPUT.act) then
+      reset_game()
+      GAME.state = "play"
+    end
+    draw_title()
+  elseif GAME.state == "play" then
+    update_play()
+    draw_game()
+  elseif GAME.state == "win" or GAME.state == "lose" then
+    if btnp(INPUT.select) then
+      reset_game()
+      GAME.state = "play"
+    end
+    draw_end(GAME.state == "win")
+  end
+end
+
+reset_game()
